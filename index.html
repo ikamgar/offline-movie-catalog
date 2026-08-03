@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Offline Movie Catalog - Browse and select movies for your video store">
+  <meta name="theme-color" content="#0f0f13">
+  <title>MovieCatalog - Video Store Browser</title>
+
+  <!-- Preconnect to prevent flash of unstyled content -->
+  <style>
+    /* Critical inline styles for instant load */
+    html { background: #0f0f13; }
+    [data-theme="light"] html, html[data-theme="light"] { background: #f5f5f7; }
+    body { margin: 0; opacity: 0; transition: opacity 0.3s ease; }
+    body.loaded { opacity: 1; }
+    .initial-loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1rem;
+      color: #9494a8;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .initial-spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #2a2a38;
+      border-top-color: #5b7fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+  <!-- Initial loading state -->
+  <div class="initial-loader" id="initialLoader">
+    <div class="initial-spinner"></div>
+    <span>Loading movie catalog...</span>
+  </div>
+
+  <!-- Application root -->
+  <app-root></app-root>
+
+  <!-- Application entry point -->
+  <script type="module" src="js/app.js"></script>
+
+  <!-- Remove loader once app is ready -->
+  <script>
+    window.addEventListener('load', () => {
+      document.body.classList.add('loaded');
+      const loader = document.getElementById('initialLoader');
+      if (loader) {
+        setTimeout(() => loader.remove(), 400);
+      }
+    });
+  </script>
+</body>
+</html>

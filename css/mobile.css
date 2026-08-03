@@ -1,0 +1,600 @@
+/* ============================================
+   MOVIE CATALOG - MOBILE OPTIMIZATIONS
+   CSS for mobile/tablet responsive behavior
+   Desktop experience remains unchanged
+   ============================================ */
+
+/* ============================================
+   TABLET BREAKPOINT (768px - 900px)
+   ============================================ */
+@media (max-width: 900px) {
+  /* Header optimizations */
+  .app-header {
+    padding: 0 var(--space-3);
+    height: 56px;
+  }
+
+  .app-logo-icon {
+    width: 32px;
+    height: 32px;
+    font-size: var(--font-size-base);
+  }
+
+  .header-search {
+    max-width: 300px;
+  }
+
+  .header-actions {
+    gap: var(--space-1);
+  }
+
+  /* Admin panel on tablet */
+  admin-panel {
+    width: 280px;
+    min-width: 280px;
+  }
+
+  /* Selection sidebar on tablet */
+  selection-sidebar {
+    width: 280px;
+    min-width: 280px;
+    max-width: 85vw;
+  }
+
+  /* Genre sidebar on tablet */
+  genre-sidebar {
+    width: 240px;
+  }
+}
+
+/* ============================================
+   MOBILE BREAKPOINT (max 600px)
+   ============================================ */
+@media (max-width: 600px) {
+  /* ---- Header Mobile ---- */
+  .app-header {
+    padding: 0 var(--space-2);
+    height: 52px;
+  }
+
+  .app-logo {
+    gap: var(--space-1);
+  }
+
+  .app-logo-icon {
+    width: 28px;
+    height: 28px;
+    font-size: var(--font-size-sm);
+    border-radius: var(--radius-sm);
+  }
+
+  .header-search {
+    max-width: none;
+    padding: 0 var(--space-1);
+  }
+
+  .search-input {
+    height: 36px;
+    line-height: 36px;
+    font-size: var(--font-size-xs);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: var(--space-8);
+    padding-right: var(--space-3);
+  }
+
+  .search-icon {
+    left: var(--space-2);
+  }
+
+  .search-shortcut {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Smaller icon buttons on mobile for better fit */
+  .header-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .header-actions .btn-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Login button - hide text on very small screens */
+  #loginBtn {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    height: 32px;
+  }
+
+  #loginBtn span {
+    display: none;
+  }
+
+  #loginBtn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Theme toggle - compact on mobile */
+  .theme-toggle {
+    width: 36px;
+    height: 20px;
+  }
+
+  .theme-toggle::after {
+    width: 14px;
+    height: 14px;
+    top: 2px;
+    left: 2px;
+  }
+
+  [data-theme="light"] .theme-toggle::after {
+    transform: translateX(16px);
+  }
+
+  .theme-toggle-icon {
+    font-size: 8px;
+  }
+
+  .theme-toggle-icon.moon {
+    left: 3px;
+  }
+
+  .theme-toggle-icon.sun {
+    right: 3px;
+  }
+
+  /* ---- App Body Mobile ---- */
+  .app-body {
+    height: calc(100vh - 52px);
+  }
+
+  /* ---- Main Content Mobile ---- */
+  .main-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-banner {
+    padding: var(--space-2) var(--space-3);
+    width: 100%;
+  }
+
+  .category-banner-name {
+    font-size: var(--font-size-lg);
+  }
+
+  /* ---- Movie Grid Mobile ---- */
+  .movie-grid-container {
+    padding: var(--space-3);
+    padding-bottom: 100px;
+  }
+
+  .movie-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  /* ---- Movie Card Mobile ---- */
+  .movie-card {
+    border-radius: var(--radius-lg);
+  }
+
+  /* Always show overlay on mobile (no hover) */
+  .movie-card-overlay {
+    opacity: 1;
+    background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.8) 100%);
+    padding: var(--space-2);
+  }
+
+  .movie-card-select-btn {
+    transform: translateY(0);
+    opacity: 1;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    border-radius: var(--radius-sm);
+    min-height: 36px;
+  }
+
+  /* Disable hover transform on touch devices */
+  .movie-card:hover {
+    transform: none;
+  }
+
+  .movie-card:hover .movie-card-poster {
+    transform: none;
+  }
+
+  .movie-card-id-badge {
+    font-size: var(--font-size-xs);
+    padding: 2px 6px;
+    top: var(--space-2);
+    left: var(--space-2);
+  }
+
+  .movie-card-type-badge {
+    font-size: 0.5625rem;
+    padding: 1px 5px;
+    top: var(--space-2);
+    right: var(--space-2);
+  }
+
+  .movie-card-info {
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+
+  .movie-card-title-line {
+    font-size: var(--font-size-sm);
+  }
+
+  .movie-card-id-large {
+    font-size: 1.2rem;
+    padding: var(--space-1) 0;
+  }
+
+  .movie-card-genre-tag {
+    font-size: 0.5rem;
+    padding: 1px 4px;
+  }
+
+  /* ---- Selection Sidebar Mobile ---- */
+  selection-sidebar {
+    width: 85vw;
+    max-width: 300px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  selection-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .selection-header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .selection-title {
+    font-size: var(--font-size-base);
+  }
+
+  .selection-list {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .selection-item {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .selection-item-poster {
+    width: 36px;
+    height: 50px;
+  }
+
+  .selection-item-title {
+    font-size: var(--font-size-xs);
+  }
+
+  .selection-item-id {
+    font-size: var(--font-size-base);
+  }
+
+  /* Show remove button always on mobile (no hover) */
+  .selection-item-remove {
+    opacity: 1;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+
+  /* ---- Admin Panel Mobile ---- */
+  admin-panel {
+    width: 100%;
+    min-width: 0;
+    position: fixed;
+    left: 0;
+    top: 52px;
+    bottom: 0;
+    z-index: var(--z-overlay);
+    border: none;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  admin-panel:not(.hidden) {
+    transform: translateX(0);
+  }
+
+  .admin-panel-header {
+    padding: var(--space-3);
+  }
+
+  .admin-panel-title {
+    font-size: var(--font-size-sm);
+  }
+
+  .admin-panel-stats {
+    padding: var(--space-3);
+  }
+
+  .admin-panel-actions {
+    padding: var(--space-3);
+    flex-direction: column;
+  }
+
+  .admin-panel-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ---- Genre Sidebar Mobile ---- */
+  genre-sidebar {
+    width: 85vw;
+    max-width: 300px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+
+  genre-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .genre-sidebar-header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .genre-sidebar-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .genre-sidebar-stats {
+    padding: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .genre-sidebar-stat-value {
+    font-size: var(--font-size-xl);
+  }
+
+  .genre-list {
+    padding: var(--space-2);
+  }
+
+  .genre-item {
+    padding: var(--space-2) var(--space-3);
+    min-height: 40px;
+  }
+
+  /* ---- Footer Mobile ---- */
+  .app-footer-content {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-size-xs);
+  }
+
+  /* ---- Floating Selection Mobile ---- */
+  .floating-selection {
+    left: var(--space-3);
+    right: var(--space-3);
+    transform: none;
+    width: auto;
+    bottom: 70px;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    justify-content: center;
+  }
+
+  /* ---- Movie Detail Modal Mobile ---- */
+  .movie-detail-backdrop {
+    padding: var(--space-3);
+    align-items: flex-end;
+  }
+
+  .movie-detail {
+    max-height: 90vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-width: none;
+  }
+
+  .movie-detail-poster {
+    height: 250px;
+  }
+
+  .movie-detail-body {
+    padding: var(--space-4);
+  }
+
+  .movie-detail-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .movie-detail-meta {
+    gap: var(--space-2);
+  }
+
+  .movie-detail-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .movie-detail-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ---- Login Modal Mobile ---- */
+  login-modal .modal-dialog {
+    width: 95%;
+    max-width: none;
+  }
+
+  login-modal .modal-body {
+    padding: var(--space-4);
+  }
+
+  login-modal .form-group input {
+    height: 44px;
+    font-size: var(--font-size-base);
+  }
+
+  /* ---- Confirm Modal Mobile ---- */
+  confirm-modal .modal-dialog {
+    width: 90%;
+    max-width: 320px;
+  }
+
+  /* ---- Toast Mobile ---- */
+  .toast-container {
+    bottom: 80px;
+    left: var(--space-3);
+    right: var(--space-3);
+  }
+
+  .toast {
+    min-width: 0;
+    width: 100%;
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-size-xs);
+  }
+
+}
+
+/* ============================================
+   VERY SMALL SCREENS (max 360px)
+   ============================================ */
+@media (max-width: 360px) {
+  .app-header {
+    padding: 0 var(--space-1);
+  }
+
+  .app-logo-icon {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-xs);
+  }
+
+  .header-actions .btn-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header-actions .btn-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .movie-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  .movie-grid-container {
+    padding: var(--space-2);
+    padding-bottom: 80px;
+  }
+
+  .movie-card-info {
+    padding: var(--space-1) var(--space-2) var(--space-2);
+  }
+
+  .movie-card-title-line {
+    font-size: var(--font-size-xs);
+  }
+
+  .movie-card-id-large {
+    font-size: 1rem;
+    padding: var(--space-1) 0;
+  }
+
+  .floating-selection {
+    bottom: 60px;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+  }
+
+  .app-footer-content {
+    padding: var(--space-1) var(--space-3);
+    font-size: 0.625rem;
+  }
+}
+
+/* ============================================
+   LANDSCAPE MOBILE ORIENTATION
+   ============================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-header {
+    height: 44px;
+  }
+
+  .movie-detail-poster {
+    height: 150px;
+  }
+
+  .floating-selection {
+    bottom: 50px;
+  }
+}
+
+/* ============================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .movie-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-card);
+    border-color: var(--color-border-primary);
+  }
+
+  .movie-card:hover .movie-card-poster {
+    transform: none;
+  }
+
+  /* Always show selection button on touch devices */
+  .movie-card-overlay {
+    opacity: 1;
+  }
+
+  .movie-card-select-btn {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Larger touch targets */
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .genre-item {
+    min-height: 44px;
+  }
+
+  .selection-item-remove {
+    min-width: 44px;
+    min-height: 44px;
+    opacity: 1;
+  }
+
+  /* Disable hover states */
+  .btn:hover {
+    transform: none;
+  }
+
+  .genre-item:hover {
+    background: transparent;
+    transform: none;
+  }
+
+  .genre-item:hover .genre-item-color {
+    transform: none;
+  }
+}

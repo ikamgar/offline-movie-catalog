@@ -1,0 +1,255 @@
+/* ============================================
+   MOVIE CATALOG - THEME SYSTEM
+   CSS Custom Properties for dark/light themes
+   ============================================ */
+
+:root {
+  /* ---- Typography Scale ---- */
+  --font-family-primary: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.9375rem;
+  --font-size-md: 1.0625rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+  --font-size-4xl: 3.5rem;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* ---- Spacing Scale ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* ---- Border Radius ---- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.35);
+
+  /* ---- Transitions ---- */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms ease;
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---- Z-Index Scale ---- */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ---- Layout ---- */
+  --sidebar-width: 340px;
+  --header-height: 64px;
+  --footer-height: 40px;
+  --grid-min-width: 200px;
+  --grid-max-width: 280px;
+}
+
+/* ============================================
+   DARK THEME (Default)
+   ============================================ */
+[data-theme="dark"],
+:root {
+  --color-bg-primary: #0f0f13;
+  --color-bg-secondary: #16161d;
+  --color-bg-tertiary: #1e1e28;
+  --color-bg-elevated: #242430;
+  --color-bg-overlay: rgba(0, 0, 0, 0.7);
+
+  --color-surface-card: #1a1a24;
+  --color-surface-card-hover: #22222e;
+  --color-surface-active: #2a2a38;
+  --color-surface-input: #1a1a24;
+
+  --color-border-primary: #2a2a38;
+  --color-border-secondary: #353548;
+  --color-border-focus: #5b7fff;
+
+  --color-text-primary: #e8e8ed;
+  --color-text-secondary: #9494a8;
+  --color-text-tertiary: #6a6a80;
+  --color-text-inverse: #0f0f13;
+  --color-text-accent: #7c9cff;
+
+  --color-accent-primary: #5b7fff;
+  --color-accent-primary-hover: #4a6de6;
+  --color-accent-primary-active: #3d5cc4;
+  --color-accent-secondary: #8b5cf6;
+  --color-accent-success: #34d399;
+  --color-accent-warning: #fbbf24;
+  --color-accent-danger: #f87171;
+  --color-accent-info: #38bdf8;
+
+  --color-genre-action: #ef4444;
+  --color-genre-drama: #8b5cf6;
+  --color-genre-romance: #ec4899;
+  --color-genre-scifi: #06b6d4;
+  --color-genre-horror: #7c3aed;
+  --color-genre-comedy: #f59e0b;
+  --color-genre-thriller: #64748b;
+  --color-genre-animation: #10b981;
+  --color-genre-documentary: #6366f1;
+  --color-genre-default: #6b7280;
+
+  --color-poster-bg: #1a1a24;
+  --poster-placeholder-color: #353548;
+
+  --scrollbar-track: #16161d;
+  --scrollbar-thumb: #353548;
+  --scrollbar-thumb-hover: #4a4a60;
+
+  --gradient-hero: linear-gradient(135deg, #0f0f13 0%, #1a1a2e 50%, #16213e 100%);
+  --gradient-card: linear-gradient(180deg, transparent 0%, rgba(15, 15, 19, 0.8) 100%);
+  --gradient-accent: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
+
+  /* ---- Badge Colors ---- */
+  --badge-dubbed-bg: linear-gradient(135deg, #2E7D32, #1B5E20);
+  --badge-dubbed-border: #43A047;
+  --badge-dubbed-text: #FFFFFF;
+
+  --badge-subtitle-bg: linear-gradient(135deg, #C62828, #8E0000);
+  --badge-subtitle-border: #D84343;
+  --badge-subtitle-text: #FFFFFF;
+
+  --badge-animation-bg: linear-gradient(135deg, #FBC02D, #F9A825);
+  --badge-animation-border: #FDD835;
+  --badge-animation-text: #2E2E2E;
+
+  --badge-series-bg: linear-gradient(135deg, #757575, #424242);
+  --badge-series-border: #9E9E9E;
+  --badge-series-text: #FFFFFF;
+
+  --badge-iranian-bg: linear-gradient(135deg, #7E57C2, #5E35B1);
+  --badge-iranian-border: #9575CD;
+  --badge-iranian-text: #FFFFFF;
+}
+
+/* ============================================
+   LIGHT THEME
+   ============================================ */
+[data-theme="light"] {
+  --color-bg-primary: #f5f5f7;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #ebebed;
+  --color-bg-elevated: #ffffff;
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+
+  --color-surface-card: #ffffff;
+  --color-surface-card-hover: #f0f0f2;
+  --color-surface-active: #e8e8ec;
+  --color-surface-input: #ffffff;
+
+  --color-border-primary: #d4d4d8;
+  --color-border-secondary: #e4e4e7;
+  --color-border-focus: #5b7fff;
+
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-tertiary: #a1a1aa;
+  --color-text-inverse: #ffffff;
+  --color-text-accent: #4a6de6;
+
+  --color-accent-primary: #5b7fff;
+  --color-accent-primary-hover: #4a6de6;
+  --color-accent-primary-active: #3d5cc4;
+  --color-accent-secondary: #8b5cf6;
+  --color-accent-success: #10b981;
+  --color-accent-warning: #d97706;
+  --color-accent-danger: #dc2626;
+  --color-accent-info: #0284c7;
+
+  --color-poster-bg: #e4e4e7;
+  --poster-placeholder-color: #a1a1aa;
+
+  --scrollbar-track: #ebebed;
+  --scrollbar-thumb: #c4c4cc;
+  --scrollbar-thumb-hover: #a4a4b0;
+
+  --gradient-hero: linear-gradient(135deg, #f5f5f7 0%, #e8e8ec 50%, #d4d8e8 100%);
+  --gradient-card: linear-gradient(180deg, transparent 0%, rgba(245, 245, 247, 0.8) 100%);
+  --gradient-accent: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+  /* ---- Badge Colors ---- */
+  --badge-dubbed-bg: linear-gradient(135deg, #2E7D32, #1B5E20);
+  --badge-dubbed-border: #43A047;
+  --badge-dubbed-text: #FFFFFF;
+
+  --badge-subtitle-bg: linear-gradient(135deg, #C62828, #8E0000);
+  --badge-subtitle-border: #D84343;
+  --badge-subtitle-text: #FFFFFF;
+
+  --badge-animation-bg: linear-gradient(135deg, #FBC02D, #F9A825);
+  --badge-animation-border: #FDD835;
+  --badge-animation-text: #2E2E2E;
+
+  --badge-series-bg: linear-gradient(135deg, #757575, #424242);
+  --badge-series-border: #9E9E9E;
+  --badge-series-text: #FFFFFF;
+
+  --badge-iranian-bg: linear-gradient(135deg, #7E57C2, #5E35B1);
+  --badge-iranian-border: #9575CD;
+  --badge-iranian-text: #FFFFFF;
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}

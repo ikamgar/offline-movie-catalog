@@ -1,0 +1,43 @@
+# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+
+# ── Runtime Data ──────────────────────────────────────────────
+data/catalog.json
+data/orders.json
+data/backups/
+
+# ── Movie Library (media files, too large for Git) ───────────
+Library/
+
+# ── Generated Poster Images ──────────────────────────────────
+posters/
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Environment & Secrets ────────────────────────────────────
+.env
+.env.*
+.env.local
+
+# ── OS Generated Files ───────────────────────────────────────
+Thumbs.db
+Desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Editor & IDE Files ───────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ── Temporary Files ───────────────────────────────────────────
+*.tmp
+*.temp
+~$*
