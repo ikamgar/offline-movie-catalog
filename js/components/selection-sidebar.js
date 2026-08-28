@@ -13,9 +13,16 @@ class SelectionSidebar extends HTMLElement {
 
   connectedCallback() {
     this.render();
+    this._prevMediaMode = store.state.mediaMode;
     this._unsubscribe = store.subscribe((state) => {
-      this._updateList(state.selectedMovies);
-      this._updateCount(state.selectedMovies.length);
+      const mediaModeChanged = state.mediaMode !== this._prevMediaMode;
+      this._prevMediaMode = state.mediaMode;
+      if (mediaModeChanged) {
+        this.render();
+      } else {
+        this._updateList(state.selectedMovies);
+        this._updateCount(state.selectedMovies.length);
+      }
     });
   }
 
@@ -53,18 +60,21 @@ class SelectionSidebar extends HTMLElement {
 
   _renderList(movies) {
     if (!movies.length) {
+      const isGames = store.state.mediaMode === 'games';
       return `
         <div class="selection-empty">
-          <div class="selection-empty-icon">📋</div>
+          <div class="selection-empty-icon">${isGames ? '🎮' : '📋'}</div>
           <div class="selection-empty-text">
-            هنوز فیلمی انتخاب نشده است.<br>
-            برای افزودن فیلم، روی دکمه «افزودن» در کارت فیلم کلیک کنید.
+            هنوز ${isGames ? 'بازی' : 'فیلمی'} انتخاب نشده است.<br>
+            برای افزودن ${isGames ? 'بازی' : 'فیلم'}، روی دکمه «افزودن» در کارت ${isGames ? 'بازی' : 'فیلم'} کلیک کنید.
           </div>
         </div>
       `;
     }
 
-    return movies.map(m => `
+    return movies.map(m => {
+      const isGame = m.type === 'Game';
+      return `
       <div class="selection-item" data-uid="${m.uid}">
         <button class="selection-item-remove" data-action="remove" title="حذف">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -79,11 +89,14 @@ class SelectionSidebar extends HTMLElement {
         />
         <div class="selection-item-info">
           <div class="selection-item-title" title="${m.title}">${m.title}</div>
-          ${m.year ? `<div class="selection-item-year">${m.year}</div>` : ''}
+          ${isGame
+            ? `<div class="selection-item-platforms">${(m.platforms || []).map(p => `<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`).join(' ')}</div>`
+            : `${m.year ? `<div class="selection-item-year">${m.year}</div>` : ''}`
+          }
         </div>
-        ${m.id !== null ? `<div class="selection-item-id">#${m.id}</div>` : ''}
+        ${!isGame && m.id !== null ? `<div class="selection-item-id">#${m.id}</div>` : ''}
       </div>
-    `).join('');
+    `;}).join('');
   }
 
   _bindEvents() {

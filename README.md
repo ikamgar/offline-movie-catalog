@@ -103,6 +103,6 @@ offline-movie-catalog/
 
 ## Version
 
-Current version: **5.3.0**
+Current version: **5.4.0**
 
 See [Releases](https://github.com/ikamgar/offline-movie-catalog/releases) for changelog.

@@ -5,7 +5,7 @@ cd /d "%~dp0"
 
 echo.
 echo  ╔════════════════════════════════════════╗
-echo  ║    MovieCatalog v5.3.0 - Setup         ║
+echo  ║    MovieCatalog v5.4.0 - Setup         ║
 echo  ╚════════════════════════════════════════╝
 echo.
 

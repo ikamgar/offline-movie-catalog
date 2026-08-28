@@ -79,12 +79,12 @@
     font-size: var(--font-size-xs);
     padding-top: 0;
     padding-bottom: 0;
-    padding-left: var(--space-8);
-    padding-right: var(--space-3);
+    padding-left: var(--space-3);
+    padding-right: var(--space-8);
   }
 
   .search-icon {
-    left: var(--space-2);
+    right: var(--space-2);
   }
 
   .search-shortcut {
@@ -94,6 +94,24 @@
   .header-actions {
     gap: 2px;
     flex-shrink: 0;
+  }
+
+  /* Media mode toggle compact on mobile */
+  .media-mode-toggle {
+    padding: 2px;
+  }
+
+  .media-mode-btn {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+
+  .media-mode-label {
+    display: none;
+  }
+
+  .media-mode-icon {
+    font-size: var(--font-size-base);
   }
 
   /* Smaller icon buttons on mobile for better fit */

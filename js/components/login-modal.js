@@ -113,6 +113,8 @@ class LoginModal extends HTMLElement {
         font-size: var(--font-size-base);
         transition: border-color var(--transition-base);
         box-sizing: border-box;
+        direction: ltr;
+        text-align: left;
       }
       login-modal .form-group input:focus {
         outline: none;
@@ -120,13 +122,17 @@ class LoginModal extends HTMLElement {
         box-shadow: 0 0 0 3px rgba(91, 127, 255, 0.2);
       }
       login-modal .form-group input::placeholder {
-        color: var(--color-text-muted);
+        color: var(--color-text-tertiary);
+        font-weight: var(--font-weight-normal);
+        direction: ltr;
+        text-align: left;
       }
       login-modal .form-actions {
         display: flex;
         gap: var(--space-3);
-        justify-content: flex-end;
+        justify-content: flex-start;
         margin-top: var(--space-6);
+        direction: rtl;
       }
       login-modal .btn {
         padding: var(--space-2) var(--space-5);

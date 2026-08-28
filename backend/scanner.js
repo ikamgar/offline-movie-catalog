@@ -16,12 +16,23 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseFilename, classifyFromPath, IMAGE_EXTENSIONS } = require('./parser');
+const { parseFilename, parseGameFilename, classifyFromPath, IMAGE_EXTENSIONS } = require('./parser');
 
 const DEBUG_LOGGING = true;
 
 function log(msg) {
   if (DEBUG_LOGGING) console.log(`  [SCANNER] ${msg}`);
+}
+
+/**
+ * Normalize a game title into a unique map key.
+ * trim → collapse spaces → lowercase
+ */
+function gameKey(title) {
+  return (title || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 }
 
 /**
@@ -143,4 +154,92 @@ function scanLibrary(libraryPath) {
   return { results, stats };
 }
 
-module.exports = { scanLibrary };
+/**
+ * Scan the Games directory for PS4 and PS5 game posters.
+ * Merges identical titles across platforms into single entries.
+ *
+ * Games/PS4/Ghost Rider.jpg → { title: "Ghost Rider", platforms: ["PS4"] }
+ * Games/PS5/Ghost Rider.jpg → merged into same entry → { platforms: ["PS4", "PS5"] }
+ *
+ * @param {string} libraryPath - Absolute path to Library root
+ * @returns {{ results: Array<{title, platforms, posterPath, extension}>, stats: object }}
+ */
+function scanGames(libraryPath) {
+  const t0 = Date.now();
+  const gamesDir = path.join(libraryPath, 'Games');
+
+  log(`Scanning games: ${gamesDir}`);
+
+  if (!fs.existsSync(gamesDir)) {
+    log('Games folder not found — skipping');
+    return { results: [], stats: { dirsVisited: 0, imageFilesFound: 0, gamesParsed: 0, elapsedMs: 0 } };
+  }
+
+  const platforms = ['PS4', 'PS5'];
+  const gameMap = new Map(); // normalizedTitle → { title, platforms: Set, posterPath, extension }
+  let imageFilesFound = 0;
+  let dirsVisited = 0;
+
+  for (const platform of platforms) {
+    const platformDir = path.join(gamesDir, platform);
+    if (!fs.existsSync(platformDir)) {
+      log(`Platform folder not found: ${platform}`);
+      continue;
+    }
+
+    const walk = walkDir(platformDir);
+    dirsVisited += walk.dirsVisited;
+    imageFilesFound += walk.imageFiles.length;
+
+    for (const { fullPath, filename } of walk.imageFiles) {
+      const parsed = parseGameFilename(filename);
+      if (!parsed) {
+        log(`  ⚠ Could not parse game filename: ${filename}`);
+        continue;
+      }
+
+      const key = gameKey(parsed.title);
+
+      if (gameMap.has(key)) {
+        // Merge: add platform to existing entry
+        gameMap.get(key).platforms.add(platform);
+      } else {
+        // New game
+        gameMap.set(key, {
+          title: parsed.title,
+          platforms: new Set([platform]),
+          posterPath: fullPath,
+          extension: parsed.extension
+        });
+      }
+
+      log(`  ✓ platform=${platform} title="${parsed.title}"`);
+    }
+  }
+
+  // Convert Sets to Arrays for output
+  const results = [];
+  for (const game of gameMap.values()) {
+    results.push({
+      title: game.title,
+      platforms: Array.from(game.platforms).sort(),
+      posterPath: game.posterPath,
+      extension: game.extension,
+      type: 'Game'
+    });
+  }
+
+  const elapsedMs = Date.now() - t0;
+  const stats = {
+    dirsVisited,
+    imageFilesFound,
+    gamesParsed: results.length,
+    elapsedMs
+  };
+
+  log(`Game scan complete: ${stats.gamesParsed} games from ${stats.imageFilesFound} images in ${stats.elapsedMs}ms`);
+
+  return { results, stats };
+}
+
+module.exports = { scanLibrary, scanGames };

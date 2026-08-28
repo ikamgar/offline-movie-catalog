@@ -53,6 +53,7 @@ const TYPE_MAP = {
   'series':    'Series',
   'serries':   'Series',
   'iranian':   'Iranian',
+  'games':     'Game',
 };
 
 const DEFAULT_TYPE = 'Movie';
@@ -198,8 +199,33 @@ function classifyFromPath(relativePath) {
   return { type, genres: [] };
 }
 
+/**
+ * Parse a Game poster filename — extracts ONLY the title.
+ * Games have no ID, no year, no genre, no release tags.
+ *
+ * Example:
+ *   "Ghost Rider.jpg" → { title: "Ghost Rider" }
+ *   "GTA V.jpg"       → { title: "GTA V" }
+ *
+ * @param {string} filename - The poster filename
+ * @returns {{ title: string, extension: string } | null}
+ */
+function parseGameFilename(filename) {
+  const dotIdx = filename.lastIndexOf('.');
+  if (dotIdx <= 0) return null;
+
+  const ext = filename.slice(dotIdx + 1).toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(ext)) return null;
+
+  const title = filename.slice(0, dotIdx).trim();
+  if (!title) return null;
+
+  return { title, extension: ext };
+}
+
 module.exports = {
   parseFilename,
+  parseGameFilename,
   cleanTitle,
   classifyFromPath,
   TYPE_MAP,

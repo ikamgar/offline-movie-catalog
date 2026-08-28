@@ -62,6 +62,7 @@ class CatalogIndexer {
     this._catalog = { meta: {}, movies: [], fileIndex: {} };
     this._movieMap = new Map(); // id → movie object (fast lookup)
     this._fileIndex = new Map(); // absolutePath → { id, lastModified }
+    this._gamesMap = new Map(); // normalizedTitle → game object
   }
 
   /**
@@ -144,7 +145,7 @@ class CatalogIndexer {
       this._createBackup();
 
       this._catalog.meta = {
-        version: '5.3.0',
+        version: '5.4.0',
         lastUpdated: new Date().toISOString(),
         totalMovies: this._movieMap.size
       };
@@ -503,6 +504,84 @@ class CatalogIndexer {
         return;
       }
     }
+  }
+
+  /**
+   * Normalize a game title into a unique map key.
+   */
+  _gameKey(title) {
+    return (title || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
+  /**
+   * Process raw game scan results: merge by title, assign platforms.
+   *
+   * @param {Array<object>} scanResults - Results from scanGames()
+   * @returns {object} - Stats
+   */
+  processGameResults(scanResults) {
+    let added = 0;
+    let updated = 0;
+
+    for (const result of scanResults) {
+      const key = this._gameKey(result.title);
+
+      if (this._gamesMap.has(key)) {
+        // Merge platforms
+        const game = this._gamesMap.get(key);
+        for (const p of result.platforms) {
+          if (!game.platforms.includes(p)) {
+            game.platforms.push(p);
+          }
+        }
+        game.platforms.sort();
+        updated++;
+      } else {
+        // New game
+        const game = {
+          uid: 'game:' + key,
+          title: result.title,
+          platforms: [...result.platforms].sort(),
+          type: 'Game',
+          absolutePosterPath: result.posterPath,
+          poster: `/api/game-poster/${encodeURIComponent(key)}`
+        };
+        this._gamesMap.set(key, game);
+        added++;
+      }
+    }
+
+    const stats = { added, updated, total: this._gamesMap.size };
+    console.log(`  [INDEXER] Games: +${added} new, ~${updated} updated, ${stats.total} total`);
+    return stats;
+  }
+
+  /**
+   * Get all games as an array (for API response).
+   */
+  getGames() {
+    return Array.from(this._gamesMap.values());
+  }
+
+  /**
+   * Get a game by its normalized title key.
+   */
+  getGameByTitle(title) {
+    const key = this._gameKey(title);
+    return this._gamesMap.get(key) || null;
+  }
+
+  /**
+   * Get the poster file path for a game.
+   */
+  getGamePosterPath(title) {
+    const key = this._gameKey(title);
+    const game = this._gamesMap.get(key);
+    if (game && game.absolutePosterPath) return game.absolutePosterPath;
+    return null;
   }
 
   /**

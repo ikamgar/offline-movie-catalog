@@ -3,7 +3,7 @@
  * Orchestrates all components, handles global keyboard shortcuts,
  * and manages the application lifecycle
  *
- * v5.3.0: Realtime architecture update
+ * v5.4.0: Realtime architecture update
  */
 
 import { store, showToast } from './store.js';
@@ -47,7 +47,18 @@ class App extends HTMLElement {
         <div class="app-logo" id="appLogo">
           <div class="app-logo-icon">🎬</div>
           <span class="app-logo-text">MovieCatalog</span>
-          <span class="app-logo-badge" id="versionBadge">v5.3.0</span>
+          <span class="app-logo-badge" id="versionBadge">v5.4.0</span>
+        </div>
+
+        <div class="media-mode-toggle" id="mediaModeToggle">
+          <button class="media-mode-btn active" data-mode="movies" title="فیلم‌ها">
+            <span class="media-mode-icon">🎬</span>
+            <span class="media-mode-label">فیلم‌ها</span>
+          </button>
+          <button class="media-mode-btn" data-mode="games" title="بازی‌ها">
+            <span class="media-mode-icon">🎮</span>
+            <span class="media-mode-label">بازی‌ها</span>
+          </button>
         </div>
 
         <div class="header-search" id="headerSearch">
@@ -115,6 +126,17 @@ class App extends HTMLElement {
       store.toggleTheme();
     });
 
+    /* Media mode toggle (Movies / Games) */
+    this.querySelector('#mediaModeToggle').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.media-mode-btn');
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      if (mode) {
+        await store.setMediaMode(mode);
+        this._applyMediaMode(store.state.mediaMode);
+      }
+    });
+
     /* Rescan / Refresh catalog from disk */
     this.querySelector('#rescanBtn').addEventListener('click', async () => {
       const btn = this.querySelector('#rescanBtn');
@@ -161,12 +183,32 @@ class App extends HTMLElement {
     store.subscribe((state) => {
       this._applySidebarState();
       this._applyRoleState(state);
+      this._applyMediaMode(state.mediaMode);
     });
   }
 
   _applyState(state) {
     this._applySidebarState();
     this._applyRoleState(state);
+    this._applyMediaMode(state.mediaMode);
+  }
+
+  _applyMediaMode(mediaMode) {
+    const isGames = mediaMode === 'games';
+    document.documentElement.setAttribute('data-gaming', isGames ? 'true' : 'false');
+
+    const toggle = this.querySelector('#mediaModeToggle');
+    if (toggle) {
+      toggle.querySelectorAll('.media-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mediaMode);
+      });
+    }
+
+    // Update logo icon
+    const logoIcon = this.querySelector('.app-logo-icon');
+    if (logoIcon) {
+      logoIcon.textContent = isGames ? '🎮' : '🎬';
+    }
   }
 
   /**

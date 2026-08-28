@@ -1,5 +1,5 @@
 /**
- * MovieCatalog Server v5.3.0
+ * MovieCatalog Server v5.4.0
  *
  * Professional Digital Movie Library Manager with:
  * - Recursive directory scanning
@@ -29,7 +29,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-const { scanLibrary } = require('./backend/scanner');
+const { scanLibrary, scanGames } = require('./backend/scanner');
 const CatalogIndexer = require('./backend/indexer');
 const LibraryWatcher = require('./backend/watcher');
 const Diagnostics = require('./backend/diagnostics');
@@ -61,7 +61,7 @@ let movieCreator = null;
 function initialize() {
   console.log('');
   console.log('  ╔════════════════════════════════════════╗');
-  console.log('  ║      MovieCatalog Server v5.3.0      ║');
+  console.log('  ║      MovieCatalog Server v5.4.0      ║');
   console.log('  ╚════════════════════════════════════════╝');
   console.log('');
 
@@ -98,6 +98,12 @@ function initialize() {
   console.log('  → Step 3: Building index...');
   indexer.replaceFromScan(scanResults);
 
+  // Step 3b: Scan games
+  console.log('  → Step 3b: Scanning games...');
+  const { results: gameResults, stats: gameStats } = scanGames(LIBRARY_PATH);
+  indexer.processGameResults(gameResults);
+  console.log(`             Found ${gameStats.gamesParsed} games`);
+
   // Step 4: Save to disk
   console.log('  → Step 4: Saving catalog cache...');
   indexer.saveToDisk();
@@ -121,6 +127,7 @@ function initialize() {
   // Print summary
   console.log('');
   console.log(`  → Total movies: ${indexer.count}`);
+  console.log(`  → Total games: ${indexer.getGames().length}`);
   console.log(`  → Total orders: ${orderManager.count}`);
 
   const typeCounts = {};
@@ -587,6 +594,60 @@ app.get('/api/movies/next-id', (req, res) => {
     console.error(`  [API] GET /api/movies/next-id error: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+/**
+ * GET /api/games
+ *
+ * Returns the full games catalog.
+ */
+app.get('/api/games', (req, res) => {
+  const games = indexer.getGames();
+  res.json({
+    meta: {
+      version: '1.0',
+      lastUpdated: new Date().toISOString(),
+      totalGames: games.length,
+      source: 'api'
+    },
+    games
+  });
+});
+
+/**
+ * GET /api/game-poster/:title
+ *
+ * Serves the poster image file for a given game title.
+ */
+app.get('/api/game-poster/:title', (req, res) => {
+  const title = req.params.title;
+  if (!title) return res.status(400).json({ error: 'Invalid game title' });
+
+  const posterPath = indexer.getGamePosterPath(title);
+  if (posterPath && fs.existsSync(posterPath)) {
+    res.sendFile(posterPath);
+  } else {
+    res.status(404).json({ error: 'Game poster not found' });
+  }
+});
+
+/**
+ * POST /api/games/rescan
+ *
+ * Force a complete games rescan.
+ */
+app.post('/api/games/rescan', (req, res) => {
+  console.log('  [API] Games rescan requested');
+
+  const { results, stats: gameStats } = scanGames(LIBRARY_PATH);
+  indexer.processGameResults(results);
+
+  res.json({
+    success: true,
+    count: indexer.getGames().length,
+    gameStats,
+    lastUpdated: new Date().toISOString()
+  });
 });
 
 // ─── Graceful Shutdown ───────────────────────────────────────────────────────

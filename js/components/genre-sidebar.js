@@ -21,6 +21,11 @@ const MEDIA_TYPE_CATEGORIES = [
   { value: 'Series', label: 'سریال', icon: '📺', color: '#64748b' },
 ];
 
+const GAME_PLATFORM_CATEGORIES = [
+  { value: 'PS4', label: 'پلی‌استیشن ۴', icon: '🎮', color: '#0066CC' },
+  { value: 'PS5', label: 'پلی‌استیشن ۵', icon: '🎮', color: '#003087' },
+];
+
 class GenreSidebar extends HTMLElement {
   constructor() {
     super();
@@ -36,12 +41,16 @@ class GenreSidebar extends HTMLElement {
       const moviesChanged = state.movies !== this._prevMovies;
       const genresChanged = state.genres !== this._prevGenres;
       const categoryChanged = state.selectedCategory !== this._prevCategory;
+      const mediaModeChanged = state.mediaMode !== this._prevMediaMode;
+      const gamesChanged = state.games !== this._prevGames;
 
       this._prevMovies = state.movies;
       this._prevGenres = state.genres;
       this._prevCategory = state.selectedCategory;
+      this._prevMediaMode = state.mediaMode;
+      this._prevGames = state.games;
 
-      if (moviesChanged || genresChanged || categoryChanged) {
+      if (moviesChanged || genresChanged || categoryChanged || mediaModeChanged || gamesChanged) {
         this.render();
       }
     });
@@ -52,10 +61,12 @@ class GenreSidebar extends HTMLElement {
     this._prevMovies = null;
     this._prevGenres = null;
     this._prevCategory = undefined;
+    this._prevMediaMode = undefined;
+    this._prevGames = null;
   }
 
   render() {
-    const { genres, genreCounts, selectedCategory, movies, totalMovies } = store.state;
+    const { genres, genreCounts, selectedCategory, movies, totalMovies, mediaMode, games, totalGames } = store.state;
 
     // Count movies by type
     const typeCounts = {};
@@ -63,19 +74,32 @@ class GenreSidebar extends HTMLElement {
       typeCounts[m.type] = (typeCounts[m.type] || 0) + 1;
     }
 
+    // Count games by platform
+    const platformCounts = {};
+    for (const g of games) {
+      for (const p of (g.platforms || [])) {
+        platformCounts[p] = (platformCounts[p] || 0) + 1;
+      }
+    }
+
+    const isGames = mediaMode === 'games';
+
     this.innerHTML = `
       <div class="genre-sidebar-header">
-        <span class="genre-sidebar-title">دسته‌بندی‌ها</span>
-        <span class="genre-sidebar-subtitle">انتخاب فیلتر</span>
+        <span class="genre-sidebar-title">${isGames ? 'دسته‌بندی بازی‌ها' : 'دسته‌بندی‌ها'}</span>
+        <span class="genre-sidebar-subtitle">${isGames ? 'انتخاب پلتفرم' : 'انتخاب فیلتر'}</span>
       </div>
       <div class="genre-sidebar-stats">
         <div class="genre-sidebar-stat">
-          <span class="genre-sidebar-stat-label">تعداد کل فیلم‌ها</span>
-          <span class="genre-sidebar-stat-value">${totalMovies}</span>
+          <span class="genre-sidebar-stat-label">${isGames ? 'تعداد کل بازی‌ها' : 'تعداد کل فیلم‌ها'}</span>
+          <span class="genre-sidebar-stat-value">${isGames ? totalGames : totalMovies}</span>
         </div>
       </div>
       <div class="genre-list" id="genreList">
-        ${this._renderAllCategories(genres, genreCounts, typeCounts, totalMovies, selectedCategory)}
+        ${isGames
+          ? this._renderGameCategories(GAME_PLATFORM_CATEGORIES, platformCounts, totalGames, selectedCategory)
+          : this._renderAllCategories(genres, genreCounts, typeCounts, totalMovies, selectedCategory)
+        }
       </div>
     `;
 
@@ -129,6 +153,32 @@ class GenreSidebar extends HTMLElement {
           <span class="genre-item-color" style="background: ${getGenreColor(g)}"></span>
           <span class="genre-item-name">${g}</span>
           <span class="genre-item-count">${genreCounts[g] || 0}</span>
+          ${isActive ? closeBtn : ''}
+        </div>`;
+      }).join('')}
+    `;
+  }
+
+  _renderGameCategories(platforms, platformCounts, totalGames, selectedCategory) {
+    const closeBtn = `<button class="genre-item-close" title="پاک کردن فیلتر" aria-label="پاک کردن فیلتر">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+      </svg>
+    </button>`;
+
+    return `
+      <div class="genre-item${!selectedCategory ? ' active' : ''}" data-category="" tabindex="0">
+        <span class="genre-item-color" style="background: #00d4ff"></span>
+        <span class="genre-item-name">🎮 همه بازی‌ها</span>
+        <span class="genre-item-count">${totalGames}</span>
+      </div>
+      ${platforms.map(t => {
+        const isActive = selectedCategory === t.value;
+        return `
+        <div class="genre-item${isActive ? ' active' : ''}" data-category="${t.value}" tabindex="0">
+          <span class="genre-item-color" style="background: ${t.color}"></span>
+          <span class="genre-item-name">${t.icon} ${t.label}</span>
+          <span class="genre-item-count">${platformCounts[t.value] || 0}</span>
           ${isActive ? closeBtn : ''}
         </div>`;
       }).join('')}

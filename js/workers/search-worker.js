@@ -6,7 +6,7 @@
 let movieIndex = [];
 
 self.onmessage = function(e) {
-  const { type, movies, query } = e.data;
+  const { type, movies, games, query } = e.data;
 
   if (type === 'index') {
     movieIndex = (Array.isArray(movies) ? movies : []).map(m => ({
@@ -18,6 +18,22 @@ self.onmessage = function(e) {
       type: (m.type || 'movie').toLowerCase(),
       original: m
     }));
+
+    // Index games alongside movies
+    if (Array.isArray(games)) {
+      for (const g of games) {
+        movieIndex.push({
+          uid: g.uid,
+          id: null,
+          title: (g.title || '').toLowerCase(),
+          year: '',
+          genres: '',
+          type: 'game',
+          platforms: Array.isArray(g.platforms) ? g.platforms.join(' ').toLowerCase() : '',
+          original: g
+        });
+      }
+    }
   }
 
   if (type === 'search') {
@@ -33,7 +49,8 @@ self.onmessage = function(e) {
           m.title.includes(q) ||
           m.year.includes(q) ||
           m.genres.includes(q) ||
-          m.type.includes(q)
+          m.type.includes(q) ||
+          (m.platforms && m.platforms.includes(q))
         )
         .map(m => m.original);
     }

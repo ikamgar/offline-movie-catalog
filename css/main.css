@@ -93,8 +93,7 @@ app-root {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
   height: var(--header-height);
   padding: 0 var(--space-6);
@@ -103,6 +102,7 @@ app-root {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   direction: ltr;
+  gap: var(--space-4);
 }
 
 .app-logo {
@@ -110,7 +110,6 @@ app-root {
   align-items: center;
   gap: var(--space-3);
   flex-shrink: 0;
-  justify-self: start;
 }
 
 .app-logo-icon {
@@ -142,9 +141,9 @@ app-root {
 }
 
 .header-search {
-  justify-self: center;
-  width: 100%;
+  flex: 1 1 0;
   max-width: 560px;
+  margin: 0 auto;
   padding: 0 var(--space-4);
 }
 
@@ -171,7 +170,6 @@ app-root {
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-  justify-self: end;
 }
 
 /* Login/Logout button — always visible, transforms based on role */
@@ -344,6 +342,12 @@ genre-sidebar:hover .genre-list::-webkit-scrollbar-thumb {
   box-shadow: inset 0 0 0 1px rgba(91, 127, 255, 0.25);
 }
 
+/* Gaming mode: cyan active state */
+[data-gaming="true"] .genre-item.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 212, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.25);
+}
+
 /* Single active genre: premium selected state */
 .genre-item--active-single {
   background: linear-gradient(135deg, rgba(91, 127, 255, 0.2), rgba(139, 92, 246, 0.12));
@@ -354,6 +358,14 @@ genre-sidebar:hover .genre-list::-webkit-scrollbar-thumb {
     inset 0 0 0 1px rgba(91, 127, 255, 0.3),
     0 2px 8px rgba(91, 127, 255, 0.15);
   min-height: 44px;
+}
+
+/* Gaming mode: cyan premium selected state */
+[data-gaming="true"] .genre-item--active-single {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.12));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 212, 255, 0.3),
+    0 2px 8px rgba(0, 212, 255, 0.15);
 }
 
 .genre-item--active-single:hover {
@@ -427,6 +439,11 @@ genre-sidebar:hover .genre-list::-webkit-scrollbar-thumb {
   outline-offset: 2px;
 }
 
+/* Gaming mode: cyan focus state */
+[data-gaming="true"] .genre-item:focus-visible {
+  outline-color: #00d4ff;
+}
+
 .genre-item-close:focus-visible {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
@@ -493,6 +510,7 @@ selection-sidebar {
   border-left: 1px solid var(--color-border-primary);
   transition: width var(--transition-base), transform var(--transition-base);
   overflow: hidden;
+  direction: rtl;
 }
 
 selection-sidebar.hidden {
@@ -509,13 +527,17 @@ selection-sidebar.collapsed {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .selection-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   display: flex;
   align-items: center;
@@ -531,6 +553,20 @@ selection-sidebar.collapsed {
   border-radius: var(--radius-full);
   min-width: 24px;
   text-align: center;
+  line-height: 1.4;
+}
+
+.selection-header .btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-fast);
+}
+
+.selection-header .btn-icon:hover {
+  background: var(--color-accent-danger);
+  color: white;
 }
 
 /* ---- Actions ---- */
@@ -584,7 +620,7 @@ selection-sidebar.collapsed {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
-  padding-left: var(--space-4);
+  padding-inline-end: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border-primary);
@@ -658,6 +694,12 @@ selection-sidebar.collapsed {
   color: var(--color-text-tertiary);
 }
 
+.selection-item-platforms {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: 2px;
+}
+
 /* ---- Large ID ---- */
 .selection-item-id {
   font-size: 18px;
@@ -667,7 +709,8 @@ selection-sidebar.collapsed {
   letter-spacing: -0.02em;
   flex-shrink: 0;
   line-height: 1;
-  padding-left: var(--space-2);
+  padding-inline-start: var(--space-2);
+  direction: ltr;
 }
 
 /* ---- Remove Button ---- */
@@ -808,11 +851,12 @@ selection-sidebar.collapsed {
   position: relative;
   display: flex;
   align-items: center;
+  direction: rtl;
 }
 
 .search-icon {
   position: absolute;
-  left: var(--space-4);
+  right: var(--space-4);
   color: var(--color-text-tertiary);
   pointer-events: none;
   display: flex;
@@ -826,8 +870,8 @@ selection-sidebar.collapsed {
   height: 44px;
   padding-top: 0;
   padding-bottom: 0;
-  padding-left: var(--space-12);
-  padding-right: var(--space-5);
+  padding-left: var(--space-5);
+  padding-right: var(--space-12);
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-xl);
@@ -867,7 +911,7 @@ selection-sidebar.collapsed {
 
 .search-shortcut {
   position: absolute;
-  right: var(--space-4);
+  left: var(--space-4);
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
   background: var(--color-bg-secondary);
@@ -913,8 +957,8 @@ selection-sidebar.collapsed {
   border-radius: 24px;
   padding-top: 0;
   padding-bottom: 0;
-  padding-left: var(--space-12);
-  padding-right: var(--space-6);
+  padding-left: var(--space-6);
+  padding-right: var(--space-12);
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -928,7 +972,7 @@ selection-sidebar.collapsed {
 }
 
 .header-search.customer-only .search-icon {
-  left: var(--space-5);
+  right: var(--space-5);
 }
 
 .header-search.customer-only .search-icon svg {
@@ -937,7 +981,7 @@ selection-sidebar.collapsed {
 }
 
 .header-search.customer-only .search-shortcut {
-  right: var(--space-5);
+  left: var(--space-5);
 }
 
 /* ============================================

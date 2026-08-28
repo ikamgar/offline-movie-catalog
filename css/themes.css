@@ -229,6 +229,73 @@
 }
 
 /* ============================================
+   GAMING MODE OVERRIDES
+   Applied when data-gaming="true" on <html>
+   ============================================ */
+[data-gaming="true"] {
+  --color-bg-primary: #0a0a12;
+  --color-bg-secondary: #10101a;
+  --color-bg-tertiary: #181825;
+  --color-bg-elevated: #1e1e30;
+
+  --color-surface-card: #14142a;
+  --color-surface-card-hover: #1c1c38;
+  --color-surface-active: #242440;
+  --color-surface-input: #14142a;
+
+  --color-border-primary: #252545;
+  --color-border-secondary: #30305a;
+  --color-border-focus: #00d4ff;
+
+  --color-accent-primary: #00d4ff;
+  --color-accent-primary-hover: #00b8e6;
+  --color-accent-primary-active: #0099cc;
+  --color-text-accent: #00d4ff;
+
+  --gradient-accent: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+  --gradient-card: linear-gradient(180deg, transparent 0%, rgba(10, 10, 18, 0.85) 100%);
+  --gradient-hero: linear-gradient(135deg, #0a0a12 0%, #0f0f2a 50%, #1a0a2e 100%);
+
+  --scrollbar-track: #10101a;
+  --scrollbar-thumb: #30305a;
+  --scrollbar-thumb-hover: #40407a;
+
+  --color-poster-bg: #14142a;
+  --poster-placeholder-color: #30305a;
+}
+
+[data-gaming="true"][data-theme="light"] {
+  --color-bg-primary: #f0f2f8;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #e8eaf2;
+  --color-bg-elevated: #ffffff;
+
+  --color-surface-card: #ffffff;
+  --color-surface-card-hover: #f0f2f8;
+  --color-surface-active: #e4e8f0;
+  --color-surface-input: #ffffff;
+
+  --color-border-primary: #d0d4e0;
+  --color-border-secondary: #c0c4d0;
+  --color-border-focus: #0099cc;
+
+  --color-accent-primary: #0099cc;
+  --color-accent-primary-hover: #007aaa;
+  --color-accent-primary-active: #005c88;
+  --color-text-accent: #0077aa;
+
+  --gradient-accent: linear-gradient(135deg, #0099cc 0%, #7c3aed 100%);
+  --gradient-hero: linear-gradient(135deg, #f0f2f8 0%, #e0e4f0 50%, #d0d8e8 100%);
+
+  --scrollbar-track: #e8eaf2;
+  --scrollbar-thumb: #c0c4d0;
+  --scrollbar-thumb-hover: #a0a4b0;
+
+  --color-poster-bg: #e4e8f0;
+  --poster-placeholder-color: #a0a4b0;
+}
+
+/* ============================================
    SCROLLBAR STYLING
    ============================================ */
 ::-webkit-scrollbar {

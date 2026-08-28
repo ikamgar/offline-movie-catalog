@@ -13,6 +13,9 @@ const CATEGORY_LABELS = {
   'Iranian': 'ایرانی',
   'Series': 'سریال',
   'Movie': 'فیلم‌ها',
+  'Game': 'بازی‌ها',
+  'PS4': 'پلی‌استیشن ۴',
+  'PS5': 'پلی‌استیشن ۵',
 };
 
 const CATEGORY_COLORS = {
@@ -20,6 +23,9 @@ const CATEGORY_COLORS = {
   'Series': '#F97316',
   'Iranian': '#22C55E',
   'Animation': '#FACC15',
+  'Game': '#00d4ff',
+  'PS4': '#0066CC',
+  'PS5': '#003087',
 };
 
 class MovieGrid extends HTMLElement {
@@ -76,11 +82,12 @@ class MovieGrid extends HTMLElement {
     grid.innerHTML = '';
 
     if (!movies.length) {
+      const isGames = store.state.mediaMode === 'games';
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
-          <div class="empty-state-icon">🔍</div>
-          <div class="empty-state-title">فیلمی یافت نشد</div>
-          <div class="empty-state-text">فیلترها یا عبارت جستجو را تغییر دهید.</div>
+          <div class="empty-state-icon">${isGames ? '🎮' : '🔍'}</div>
+          <div class="empty-state-title">${isGames ? 'بازی یافت نشد' : 'فیلمی یافت نشد'}</div>
+          <div class="empty-state-text">${isGames ? 'فیلترها یا عبارت جستجو را تغییر دهید.' : 'فیلترها یا عبارت جستجو را تغییر دهید.'}</div>
         </div>
       `;
       return;
@@ -160,12 +167,16 @@ class MovieGrid extends HTMLElement {
   }
 
   _getCategoryLabel(category) {
-    if (!category) return 'همه فیلم‌ها';
+    if (!category) {
+      return store.state.mediaMode === 'games' ? 'همه بازی‌ها' : 'همه فیلم‌ها';
+    }
     return CATEGORY_LABELS[category] || category;
   }
 
   _getCategoryColor(category) {
-    if (!category) return '#64748B';
+    if (!category) {
+      return store.state.mediaMode === 'games' ? '#00d4ff' : '#64748B';
+    }
     return CATEGORY_COLORS[category] || getGenreColor(category);
   }
 

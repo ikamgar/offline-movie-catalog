@@ -35,9 +35,10 @@ class MovieDetail extends HTMLElement {
 
     const isSelected = store.isSelected(m.uid);
     const isAdmin = store.role === 'admin';
+    const isGame = m.type === 'Game';
 
-    // IMDB Rating badge
-    const imdbRatingHtml = m.imdbRating && m.imdbRating > 0 ? `
+    // IMDB Rating badge (movies only)
+    const imdbRatingHtml = !isGame && m.imdbRating && m.imdbRating > 0 ? `
       <div class="movie-detail-imdb">
         <span class="imdb-rating-badge">
           <span class="star">★</span> ${m.imdbRating}
@@ -45,16 +46,28 @@ class MovieDetail extends HTMLElement {
       </div>
     ` : '';
 
-    // Plot summary
-    const plotHtml = m.plotSummary ? `
+    // Plot summary (movies only)
+    const plotHtml = !isGame && m.plotSummary ? `
       <div class="movie-detail-plot">
         <div class="movie-detail-plot-label">خلاصه داستان</div>
         <div class="movie-detail-plot-text">${m.plotSummary}</div>
       </div>
     ` : '';
 
-    // Action buttons
-    const actionButtons = isAdmin ? `
+    // Type/platforms display
+    const typeLabel = isGame
+      ? (m.platforms || []).map(p => `<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`).join(' ')
+      : `<span style="color:var(--color-text-secondary)">${m.type === 'Movie' ? 'فیلم' : m.type === 'Series' ? 'سریال' : m.type === 'Animation' ? 'انیمیشن' : m.type === 'Iranian' ? 'ایرانی' : m.type || 'فیلم'}</span>`;
+
+    // Genre tags (movies only)
+    const genresHtml = !isGame && m.genres ? `
+      <div class="movie-detail-genres">
+        ${m.genres.map(g => `<span class="movie-detail-genre genre-tag" data-genre="${g}">${g}</span>`).join('')}
+      </div>
+    ` : '';
+
+    // Action buttons (no edit for games)
+    const actionButtons = isAdmin && !isGame ? `
       <div class="movie-detail-actions">
         <button class="btn btn-secondary" id="detailEdit">
           ویرایش فیلم
@@ -70,7 +83,7 @@ class MovieDetail extends HTMLElement {
         <button class="btn btn-primary" id="detailSelect">
           ${isSelected ? '✓ انتخاب شده' : '+ افزودن به لیست'}
         </button>
-        ${m.id !== null ? `
+        ${!isGame && m.id !== null ? `
         <button class="btn btn-secondary" id="detailCopyId">
           کپی شناسه (#${m.id})
         </button>
@@ -85,7 +98,7 @@ class MovieDetail extends HTMLElement {
             class="movie-detail-poster"
             src="${m.poster}"
             alt="${m.title}"
-            onerror="this.src='${generatePosterPlaceholder(m.title, m.id)}'"
+            onerror="this.src='${generatePosterPlaceholder(m.title, m.id || m.title)}'"
           />
           <div class="movie-detail-body">
             <div class="movie-detail-header">
@@ -97,15 +110,13 @@ class MovieDetail extends HTMLElement {
               </button>
             </div>
             <div class="movie-detail-meta">
-              ${m.id !== null ? `<span class="movie-detail-id">#${m.id}</span>` : ''}
-              ${m.year ? `<span class="movie-detail-year">${m.year}</span>` : ''}
-              ${(m.id !== null || m.year) ? '<span style="color:var(--color-text-tertiary)">•</span>' : ''}
-              <span style="color:var(--color-text-secondary)">${m.type === 'Movie' ? 'فیلم' : m.type === 'Series' ? 'سریال' : m.type === 'Animation' ? 'انیمیشن' : m.type === 'Iranian' ? 'ایرانی' : m.type || 'فیلم'}</span>
+              ${!isGame && m.id !== null ? `<span class="movie-detail-id">#${m.id}</span>` : ''}
+              ${!isGame && m.year ? `<span class="movie-detail-year">${m.year}</span>` : ''}
+              ${!isGame && (m.id !== null || m.year) ? '<span style="color:var(--color-text-tertiary)">•</span>' : ''}
+              ${typeLabel}
             </div>
             ${imdbRatingHtml}
-            <div class="movie-detail-genres">
-              ${m.genres.map(g => `<span class="movie-detail-genre genre-tag" data-genre="${g}">${g}</span>`).join('')}
-            </div>
+            ${genresHtml}
             ${plotHtml}
             ${actionButtons}
           </div>

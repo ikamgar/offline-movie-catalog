@@ -4,7 +4,7 @@ title Movie Catalog Server
 cd /d "%~dp0"
 
 echo ===============================================
-echo        Movie Catalog v5.3.0
+echo        Movie Catalog v5.4.0
 echo ===============================================
 echo.
 

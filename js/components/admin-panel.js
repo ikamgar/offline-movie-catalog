@@ -40,6 +40,8 @@ class AdminPanel extends HTMLElement {
 
   render() {
     const { adminSelection, adminSelectionUpdatedAt, isAdminConnected } = store.state;
+    const count = adminSelection.length;
+    const time = this._formatTime(adminSelectionUpdatedAt);
 
     this.innerHTML = `
       <div class="admin-panel">
@@ -58,27 +60,27 @@ class AdminPanel extends HTMLElement {
 
         <div class="admin-panel-stats">
           <div class="admin-stat">
-            <span class="admin-stat-label">فیلم‌های انتخاب شده:</span>
-            <span class="admin-stat-value" id="selectionCount">${adminSelection.length}</span>
+            <span class="admin-stat-label">انتخاب شده</span>
+            <span class="admin-stat-value" id="selectionCount">${count}</span>
           </div>
           <div class="admin-stat">
-            <span class="admin-stat-label">آخرین بروزرسانی:</span>
-            <span class="admin-stat-value" id="lastUpdate">${this._formatTime(adminSelectionUpdatedAt)}</span>
+            <span class="admin-stat-label">آخرین بروزرسانی</span>
+            <span class="admin-stat-value admin-stat-time" id="lastUpdate">${time}</span>
           </div>
         </div>
 
         <div class="admin-panel-actions">
-          <button class="btn btn-primary btn-sm" id="saveOrderBtn" ${adminSelection.length ? '' : 'disabled'}>
+          <button class="btn btn-primary btn-sm" id="saveOrderBtn" ${count ? '' : 'disabled'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
             </svg>
             ذخیره سفارش
           </button>
-          <button class="btn btn-danger btn-sm" id="clearBtn" ${adminSelection.length ? '' : 'disabled'}>
+          <button class="btn btn-danger btn-sm" id="clearBtn" ${count ? '' : 'disabled'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
-            پاک کردن انتخاب
+            پاک کردن
           </button>
         </div>
 
@@ -87,7 +89,7 @@ class AdminPanel extends HTMLElement {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            افزودن فیلم جدید
+            افزودن فیلم
           </button>
         </div>
 
@@ -108,7 +110,9 @@ class AdminPanel extends HTMLElement {
   }
 
   _applyStyles() {
+    if (document.getElementById('admin-panel-styles')) return;
     const style = document.createElement('style');
+    style.id = 'admin-panel-styles';
     style.textContent = `
       admin-panel {
         width: 320px;
@@ -128,11 +132,13 @@ class AdminPanel extends HTMLElement {
         height: 100%;
         overflow-y: auto;
       }
+
+      /* ── Header ── */
       .admin-panel-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: var(--space-4) var(--space-4);
+        padding: var(--space-4) var(--space-5);
         border-bottom: 1px solid var(--color-border-primary);
         background: var(--color-bg-tertiary);
         position: sticky;
@@ -150,36 +156,50 @@ class AdminPanel extends HTMLElement {
       .admin-connection-status {
         display: flex;
         align-items: center;
-        gap: var(--space-1);
+        gap: 6px;
         font-size: var(--font-size-xs);
-        color: var(--color-text-muted);
+        color: var(--color-text-tertiary);
+        padding: 3px 10px;
+        border-radius: var(--radius-full);
+        background: var(--color-bg-primary);
+        border: 1px solid var(--color-border-primary);
       }
       .admin-connection-status .status-dot {
-        width: 6px;
-        height: 6px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         background: var(--color-text-muted);
+        flex-shrink: 0;
       }
       .admin-connection-status.connected .status-dot {
         background: #22c55e;
         box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
       }
+      .admin-connection-status.connected {
+        color: #22c55e;
+      }
       .admin-connection-status.disconnected .status-dot {
         background: #ef4444;
         box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
       }
+      .admin-connection-status.disconnected {
+        color: #ef4444;
+      }
+
+      /* ── Stats ── */
       .admin-panel-stats {
-        padding: var(--space-4);
+        padding: var(--space-3) var(--space-5);
         border-bottom: 1px solid var(--color-border-primary);
+        background: var(--color-bg-secondary);
       }
       .admin-stat {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: var(--space-2);
+        justify-content: space-between;
+        padding: var(--space-2) 0;
       }
-      .admin-stat:last-child {
-        margin-bottom: 0;
+      .admin-stat + .admin-stat {
+        border-top: 1px solid var(--color-border-primary);
       }
       .admin-stat-label {
         font-size: var(--font-size-sm);
@@ -187,13 +207,22 @@ class AdminPanel extends HTMLElement {
       }
       .admin-stat-value {
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-bold);
         color: var(--color-text-primary);
+        font-family: var(--font-family-mono);
+        direction: ltr;
       }
+      .admin-stat-time {
+        font-family: var(--font-family-primary);
+        font-weight: var(--font-weight-medium);
+        direction: rtl;
+      }
+
+      /* ── Actions ── */
       .admin-panel-actions {
         display: flex;
         gap: var(--space-2);
-        padding: var(--space-4);
+        padding: var(--space-3) var(--space-5);
         border-bottom: 1px solid var(--color-border-primary);
       }
       .admin-panel-actions .btn {
@@ -204,23 +233,36 @@ class AdminPanel extends HTMLElement {
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
         font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        border-radius: var(--radius-md);
         transition: all var(--transition-fast);
+        height: 34px;
       }
-      .admin-panel-actions .btn-primary:hover {
-        opacity: 0.9;
+      .admin-panel-actions .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+      .admin-panel-actions .btn-primary:hover:not(:disabled) {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(91, 127, 255, 0.4);
       }
-      .admin-panel-actions .btn-danger:hover {
+      .admin-panel-actions .btn-danger:hover:not(:disabled) {
         opacity: 0.9;
       }
+
+      /* ── Add Movie ── */
       .admin-panel-add-movie {
-        padding: var(--space-2) var(--space-4) var(--space-4);
+        padding: var(--space-2) var(--space-5) var(--space-3);
         border-bottom: 1px solid var(--color-border-primary);
       }
       .admin-panel-add-movie .btn-full {
         width: 100%;
+        height: 34px;
       }
+
+      /* ── Selection List ── */
       .admin-panel-list {
         flex: 1;
         overflow-y: auto;
@@ -232,6 +274,8 @@ class AdminPanel extends HTMLElement {
         height: 1px;
         background: var(--color-border-primary);
       }
+
+      /* ── Selection Items ── */
       .admin-selection-item {
         display: flex;
         align-items: center;
@@ -268,9 +312,10 @@ class AdminPanel extends HTMLElement {
       }
       .admin-selection-id {
         font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-bold);
         color: var(--color-accent-primary);
         white-space: nowrap;
+        direction: ltr;
       }
       .admin-empty {
         display: flex;
@@ -636,14 +681,16 @@ class AdminPanel extends HTMLElement {
         <div class="admin-empty">
           <div class="admin-empty-icon">📋</div>
           <div class="admin-empty-text">
-            هنوز فیلمی انتخاب نشده است.<br>
-            مشتری در حال انتخاب فیلم است.
+            هنوز آیمی انتخاب نشده است.<br>
+            مشتری در حال انتخاب است.
           </div>
         </div>
       `;
     }
 
-    return movies.map(m => `
+    return movies.map(m => {
+      const isGame = m.type === 'Game';
+      return `
       <div class="admin-selection-item" data-uid="${m.uid}">
         <img
           class="admin-selection-poster"
@@ -654,13 +701,15 @@ class AdminPanel extends HTMLElement {
         <div class="admin-selection-info">
           <div class="admin-selection-title" title="${m.title}">${m.title}</div>
           <div class="admin-selection-meta">
-            ${m.year ? `${m.year}` : ''}
-            ${m.type ? ` • ${m.type}` : ''}
+            ${isGame
+              ? (m.platforms || []).join(' • ')
+              : `${m.year ? `${m.year}` : ''} ${m.type ? ` • ${m.type}` : ''}`
+            }
           </div>
         </div>
-        ${m.id !== null ? `<div class="admin-selection-id">#${m.id}</div>` : ''}
+        ${!isGame && m.id !== null ? `<div class="admin-selection-id">#${m.id}</div>` : ''}
       </div>
-    `).join('');
+    `;}).join('');
   }
 
   _updatePanel(state) {
@@ -715,7 +764,7 @@ class AdminPanel extends HTMLElement {
       const modal = document.getElementById('confirmModal');
       if (modal && typeof modal.show === 'function') {
         modal.show(
-          `آیا مطمئن هستید که می‌خواهید این سفارش را ذخیره کنید؟\n\nفیلم‌های انتخاب شده: ${adminSelection.length}`,
+          `آیا مطمئن هستید که می‌خواهید این سفارش را ذخیره کنید؟\n\nآیتم‌های انتخاب شده: ${adminSelection.length}`,
           'ذخیره سفارش',
           () => {
             store.saveAdminSelectionAsOrder();

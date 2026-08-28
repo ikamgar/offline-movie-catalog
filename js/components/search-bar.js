@@ -15,6 +15,24 @@ class SearchBar extends HTMLElement {
   connectedCallback() {
     this.render();
     this._bindEvents();
+    this._updatePlaceholder();
+    this._unsubscribeMediaMode = store.subscribe((state) => {
+      this._updatePlaceholder();
+    });
+  }
+
+  disconnectedCallback() {
+    if (this._unsubscribeMediaMode) this._unsubscribeMediaMode();
+  }
+
+  _updatePlaceholder() {
+    const input = this.querySelector('.search-input');
+    if (!input) return;
+    const isGames = store.state.mediaMode === 'games';
+    input.placeholder = isGames
+      ? 'جستجو بر اساس نام بازی یا پلتفرم...'
+      : 'جستجو بر اساس نام، شناسه، سال یا ژانر...';
+    input.setAttribute('aria-label', isGames ? 'جستجوی بازی' : 'جستجوی فیلم');
   }
 
   render() {

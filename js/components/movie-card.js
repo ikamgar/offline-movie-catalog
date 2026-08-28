@@ -42,21 +42,33 @@ class MovieCard extends HTMLElement {
     const isSelected = store.isSelected(m.uid);
     const posterAlt = `${m.title} poster`;
     const isAdmin = store.role === 'admin';
+    const isGame = m.type === 'Game';
 
-    this.className = `movie-card${isSelected ? ' selected' : ''}`;
+    this.className = `movie-card${isSelected ? ' selected' : ''}${isGame ? ' game-card' : ''}`;
 
-    const badgeConfig = getBadge(m);
-
-    // IMDB Badge - only show if rating exists and > 0
-    const imdbBadge = m.imdbRating && m.imdbRating > 0 ? `
+    // IMDB Badge - only show for movies if rating exists and > 0
+    const imdbBadge = !isGame && m.imdbRating && m.imdbRating > 0 ? `
       <span class="imdb-badge">
         <span class="imdb-logo">IMDb</span>
         <span>${m.imdbRating}</span>
       </span>
     ` : '';
 
+    // Type badge - movie badge for movies, platform badges for games
+    let typeBadge = '';
+    if (isGame) {
+      typeBadge = (m.platforms || []).map(p =>
+        `<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`
+      ).join('');
+    } else {
+      const badgeConfig = getBadge(m);
+      if (badgeConfig) {
+        typeBadge = `<span class="movie-card-type-badge ${badgeConfig.cls}">${badgeConfig.text}</span>`;
+      }
+    }
+
     // Action button: Edit for admin, Select for customer
-    const actionButton = isAdmin ? `
+    const actionButton = isAdmin && !isGame ? `
       <button class="movie-card-edit-btn" data-action="edit">
         ویرایش
       </button>
@@ -66,24 +78,15 @@ class MovieCard extends HTMLElement {
       </button>
     `;
 
-    this.innerHTML = `
-      <div class="movie-card-poster-wrapper">
-        ${imdbBadge}
-        ${badgeConfig ? `<span class="movie-card-type-badge ${badgeConfig.cls}">${badgeConfig.text}</span>` : ''}
-        <img
-          class="movie-card-poster"
-          data-src="${m.poster}"
-          alt="${posterAlt}"
-          loading="lazy"
-        />
-        <div class="movie-card-poster-placeholder" id="posterPlaceholder">
-          <span class="movie-card-poster-placeholder-icon">🎬</span>
-          <span class="movie-card-poster-placeholder-text">${m.title.split(' ')[0]}</span>
-        </div>
-        <div class="movie-card-overlay">
-          ${actionButton}
+    // Info section - different for games vs movies
+    const infoSection = isGame ? `
+      <div class="movie-card-info">
+        <div class="movie-card-title-line" title="${m.title}">${m.title}</div>
+        <div class="movie-card-platforms">
+          ${(m.platforms || []).map(p => `<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`).join('')}
         </div>
       </div>
+    ` : `
       <div class="movie-card-info">
         <div class="movie-card-title-line" title="${m.title}">${m.title}${m.year ? ' ' + m.year : ''}</div>
         ${m.id !== null ? `<div class="movie-card-id-large">#${m.id}</div>` : ''}
@@ -91,6 +94,27 @@ class MovieCard extends HTMLElement {
           ${m.genres.map(g => `<span class="movie-card-genre-tag genre-tag" data-genre="${g}" style="background:${getGenreColor(g)}22;color:${getGenreColor(g)}">${g}</span>`).join('')}
         </div>
       </div>
+    `;
+
+    this.innerHTML = `
+      <div class="movie-card-poster-wrapper">
+        ${imdbBadge}
+        ${typeBadge ? (isGame ? `<div class="movie-card-platform-badges">${typeBadge}</div>` : typeBadge) : ''}
+        <img
+          class="movie-card-poster"
+          data-src="${m.poster}"
+          alt="${posterAlt}"
+          loading="lazy"
+        />
+        <div class="movie-card-poster-placeholder" id="posterPlaceholder">
+          <span class="movie-card-poster-placeholder-icon">${isGame ? '🎮' : '🎬'}</span>
+          <span class="movie-card-poster-placeholder-text">${m.title.split(' ')[0]}</span>
+        </div>
+        <div class="movie-card-overlay">
+          ${actionButton}
+        </div>
+      </div>
+      ${infoSection}
     `;
 
     const img = this.querySelector('.movie-card-poster');
@@ -101,7 +125,7 @@ class MovieCard extends HTMLElement {
     });
 
     img.addEventListener('error', () => {
-      img.src = generatePosterPlaceholder(m.title, m.id);
+      img.src = generatePosterPlaceholder(m.title, isGame ? m.title : m.id);
       placeholder.style.display = 'none';
     });
 

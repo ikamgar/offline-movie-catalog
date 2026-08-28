@@ -972,3 +972,101 @@ add-modal.hidden {
   color: var(--color-text-tertiary);
   margin-top: var(--space-1);
 }
+
+/* ---- Platform Badges (Games) ---- */
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.platform-badge--ps4 {
+  background: linear-gradient(135deg, #0066CC, #004499);
+  color: #FFFFFF;
+  border: 1px solid #0088EE;
+  box-shadow: 0 2px 6px rgba(0, 102, 204, 0.3);
+}
+
+.platform-badge--ps5 {
+  background: linear-gradient(135deg, #003087, #001845);
+  color: #FFFFFF;
+  border: 1px solid #0050AA;
+  box-shadow: 0 2px 6px rgba(0, 48, 135, 0.3);
+}
+
+/* Platform badges on poster (top-right) */
+.movie-card-platform-badges {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+/* Platform badges in card info */
+.movie-card-platforms {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  justify-content: center;
+}
+
+/* Game card specific */
+.movie-card.game-card .movie-card-poster-wrapper {
+  position: relative;
+}
+
+/* ---- Media Mode Toggle (Header) ---- */
+.media-mode-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.media-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+  background: transparent;
+}
+
+.media-mode-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-elevated);
+}
+
+.media-mode-btn.active {
+  background: var(--gradient-accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+.media-mode-icon {
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+
+.media-mode-label {
+  font-size: var(--font-size-sm);
+}

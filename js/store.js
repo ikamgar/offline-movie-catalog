@@ -3,7 +3,7 @@
  * Reactive store for application state with subscriber pattern
  *
  * v2.0: Fetches from /api/movies (backend auto-scan) with fallback to data/movies.json
- * v5.3.0: Realtime architecture update
+ * v5.4.0: Realtime architecture update
  */
 
 import { sortMovies, compareAllMovies } from './utils/sort.js';
@@ -30,7 +30,7 @@ class Store {
       genres: [],
       genreCounts: {},
       selectedGenre: null,
-      selectedCategory: null, // Can be a genre (e.g., "اکشن") or a type (e.g., "Animation")
+      selectedCategory: null, // Can be a genre (e.g., "اکشن") or a type (e.g., "Animation") or a platform (e.g., "PS4")
       searchQuery: '',
       viewMode: 'grid',
       selectedMovies: [],
@@ -38,6 +38,10 @@ class Store {
       selectionSidebarOpen: true,
       isLoading: true,
       totalMovies: 0,
+      // Media mode: 'movies' or 'games'
+      mediaMode: 'movies',
+      games: [],
+      totalGames: 0,
       // Role-based state
       role: 'customer', // 'customer' or 'admin'
       sessionToken: null,
@@ -181,7 +185,15 @@ class Store {
       const resp = await fetch('/api/rescan', { method: 'POST' });
       if (!resp.ok) throw new Error('Rescan failed');
       await this.init();
-      showToast(`کتابخانه بروزرسانی شد: ${this.state.totalMovies} فیلم`, 'success');
+      // Also refresh games if we have them loaded
+      if (this._state.games.length > 0 || this._state.mediaMode === 'games') {
+        await this.fetchGames();
+      }
+      const movieCount = this.state.totalMovies;
+      const gameCount = this.state.totalGames;
+      let msg = `کتابخانه بروزرسانی شد: ${movieCount} فیلم`;
+      if (gameCount > 0) msg += `، ${gameCount} بازی`;
+      showToast(msg, 'success');
     } catch {
       showToast('بروزرسانی ممکن نیست — سرور در حال اجرا نیست', 'error');
     }
@@ -231,7 +243,7 @@ class Store {
 
   _indexMovies(movies) {
     if (this._searchWorker) {
-      this._searchWorker.postMessage({ type: 'index', movies });
+      this._searchWorker.postMessage({ type: 'index', movies, games: this._state.games });
     }
   }
 
@@ -513,6 +525,43 @@ class Store {
     this._applyFilters();
   }
 
+  /**
+   * Switch between movie mode and game mode.
+   * Fetches games data on first switch to games mode.
+   *
+   * @param {'movies'|'games'} mode - The media mode to switch to
+   */
+  async setMediaMode(mode) {
+    if (mode === this._state.mediaMode) return;
+
+    this._set({ mediaMode: mode, selectedCategory: null, selectedGenre: null, searchQuery: '' });
+
+    // Fetch games on first switch to games mode
+    if (mode === 'games' && this._state.games.length === 0) {
+      await this.fetchGames();
+    }
+
+    this._applyFilters();
+  }
+
+  /**
+   * Fetch games from the backend API.
+   */
+  async fetchGames() {
+    try {
+      const resp = await fetch('/api/games');
+      if (!resp.ok) throw new Error('Failed to fetch games');
+      const data = await resp.json();
+      const games = Array.isArray(data.games) ? data.games : [];
+      this._set({ games, totalGames: games.length });
+      // Re-index for search
+      this._indexMovies(this._state.movies);
+    } catch (err) {
+      console.warn('Failed to fetch games:', err);
+      this._set({ games: [], totalGames: 0 });
+    }
+  }
+
   setGenre(genre) {
     const current = this._state.selectedGenre;
     this._set({ selectedGenre: current === genre ? null : genre });
@@ -619,7 +668,11 @@ class Store {
   }
 
   getSelectedMovies() {
+    // Build lookup from both movies and games
     const movieMap = new Map(this._state.movies.map(m => [m.uid, m]));
+    for (const g of this._state.games) {
+      movieMap.set(g.uid, g);
+    }
     return Array.from(this._selectedUids)
       .map(uid => movieMap.get(uid))
       .filter(Boolean);
@@ -668,7 +721,37 @@ class Store {
   }
 
   _applyFilters() {
-    const { movies, searchQuery, selectedCategory } = this._state;
+    const { searchQuery, selectedCategory, mediaMode } = this._state;
+
+    // Games mode
+    if (mediaMode === 'games') {
+      let result = [...this._state.games];
+
+      // Platform filter (PS4 / PS5)
+      if (selectedCategory === 'PS4') {
+        result = result.filter(g => g.platforms.includes('PS4'));
+      } else if (selectedCategory === 'PS5') {
+        result = result.filter(g => g.platforms.includes('PS5'));
+      }
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        result = result.filter(g =>
+          g.title.toLowerCase().includes(q) ||
+          g.platforms.some(p => p.toLowerCase().includes(q))
+        );
+      }
+
+      // Sort alphabetically by title
+      result.sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
+
+      this._set({ filteredMovies: result });
+      return;
+    }
+
+    // Movie mode (existing logic)
+    const { movies } = this._state;
     let result = [...movies];
 
     // Filter by category (can be a genre or a type)

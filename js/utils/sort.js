@@ -4,7 +4,7 @@
  * Single source of truth for all movie list ordering.
  * Each media type has its own sorting strategy.
  *
- * v5.3.0: Version update
+ * v5.4.0: Version update
  */
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
