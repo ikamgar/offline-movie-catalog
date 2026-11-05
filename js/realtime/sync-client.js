@@ -25,18 +25,33 @@ class SyncClient {
     this._onOrderSavedCallback = null;
     this._onOrderDeletedCallback = null;
     this._onOrdersListCallback = null;
+    this._onOrderRestoredCallback = null; // P6d E5 — soft delete undone
+    this._onOrdersErrorCallback = null; // P6d E5 — order operation failed
     this._onMovieUpdatedCallback = null; // For movie updates
     this._onMovieAddedCallback = null; // For new movie additions
     this._onAuthErrorCallback = null;
+    this._onCatalogChangedCallback = null;
     this._connectionCounter = 0;
     this._authFailed = false;
+    this._bootId = null;
+  }
+
+  /** Server boot id from the most recent hello:ack (null until first ack). */
+  get bootId() {
+    return this._bootId;
   }
 
   /**
    * Initialize the WebSocket connection.
+   * Always closes any existing connection first — never more than one socket.
    * @param {string|null} sessionToken - Optional session token for admin authentication
    */
   connect(sessionToken = null) {
+    if (this._connection) {
+      this._connection.close();
+      this._connection = null;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let url = `${protocol}//${window.location.host}`;
 
@@ -67,7 +82,7 @@ class SyncClient {
           }
         }
       },
-      onError: (error) => {
+      onError: () => {
         console.error('[SYNC] Connection error');
       }
     }, sessionToken);
@@ -85,6 +100,9 @@ class SyncClient {
       case 'hello:ack':
         // Handshake complete — now ready to send messages
         this._isReady = true;
+        if (message.payload && message.payload.bootId != null) {
+          this._bootId = message.payload.bootId;
+        }
 
         // Send any pending selection
         if (this._pendingSelection) {
@@ -148,6 +166,20 @@ class SyncClient {
         }
         break;
 
+      case 'orders:restored':
+        // A soft-deleted order came back (P6d E5)
+        if (this._onOrderRestoredCallback) {
+          this._onOrderRestoredCallback(message.payload.order);
+        }
+        break;
+
+      case 'orders:error':
+        // Order operation refused/failed (P6d E5)
+        if (this._onOrdersErrorCallback) {
+          this._onOrdersErrorCallback(message.payload.message);
+        }
+        break;
+
       case 'movie:updated':
         // Movie was updated by admin
         if (this._onMovieUpdatedCallback) {
@@ -159,6 +191,13 @@ class SyncClient {
         // New movie was added by admin
         if (this._onMovieAddedCallback) {
           this._onMovieAddedCallback(message.payload.movie);
+        }
+        break;
+
+      case 'catalog:changed':
+        // Hot catalog change — client should reload (debounced by store)
+        if (this._onCatalogChangedCallback) {
+          this._onCatalogChangedCallback(message.payload);
         }
         break;
 
@@ -236,6 +275,24 @@ class SyncClient {
   }
 
   /**
+   * Set callback for a restored (undone) order (P6d E5).
+   *
+   * @param {function} callback
+   */
+  onOrderRestored(callback) {
+    this._onOrderRestoredCallback = callback;
+  }
+
+  /**
+   * Set callback for order operation errors (P6d E5).
+   *
+   * @param {function} callback
+   */
+  onOrdersError(callback) {
+    this._onOrdersErrorCallback = callback;
+  }
+
+  /**
    * Set callback for movie updated event.
    *
    * @param {function} callback
@@ -251,6 +308,14 @@ class SyncClient {
    */
   onMovieAdded(callback) {
     this._onMovieAddedCallback = callback;
+  }
+
+  /**
+   * Set callback for catalog:changed (hot add/update/remove of posters).
+   * @param {function} callback
+   */
+  onCatalogChanged(callback) {
+    this._onCatalogChangedCallback = callback;
   }
 
   /**
@@ -325,6 +390,55 @@ class SyncClient {
 
     this._connection.send({
       type: 'orders:delete',
+      payload: { orderId }
+    });
+  }
+
+  /**
+   * Change an order's workflow status (P6d E5).
+   *
+   * @param {string} orderId
+   * @param {string} status - new | preparing | done
+   */
+  updateOrderStatus(orderId, status) {
+    if (!this._connection || !this._isReady) return;
+
+    this._connection.send({
+      type: 'orders:update-status',
+      payload: { orderId, status }
+    });
+  }
+
+  /**
+   * Edit customerName / note of an order (P6d E5).
+   * Omitted fields keep their current values server-side.
+   *
+   * @param {string} orderId
+   * @param {{ customerName?: string, note?: string }} fields
+   */
+  editOrder(orderId, fields = {}) {
+    if (!this._connection || !this._isReady) return;
+
+    this._connection.send({
+      type: 'orders:edit',
+      payload: {
+        orderId,
+        customerName: fields.customerName,
+        note: fields.note
+      }
+    });
+  }
+
+  /**
+   * Undo a soft-deleted order inside the undo window (P6d E5).
+   *
+   * @param {string} orderId
+   */
+  undoOrderDelete(orderId) {
+    if (!this._connection || !this._isReady) return;
+
+    this._connection.send({
+      type: 'orders:undo',
       payload: { orderId }
     });
   }

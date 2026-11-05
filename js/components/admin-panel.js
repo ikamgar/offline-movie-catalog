@@ -2,22 +2,13 @@
  * AdminPanel Component
  *
  * Panel for admins to view and manage customer selection and orders.
- * Replaces the Selection Sidebar when in admin mode.
- *
- * Features:
- *   - Shows customer's realtime selection
- *   - Shows number of selected movies
- *   - Shows last update time
- *   - Save Selection button
- *   - Save Order button (persistent)
- *   - Clear Customer Selection button
- *   - Saved Orders section
- *
- * IMPORTANT: This panel never modifies cards directly.
- * It only sends commands to the server.
  */
 
 import { store, showToast } from '../store.js';
+import { html, raw } from '../utils/html.js';
+import { api, apiPost } from '../utils/api.js';
+import { hasId } from '../utils/helpers.js';
+import { trapFocus } from '../utils/dialog.js';
 import './order-panel.js';
 import './order-card.js';
 
@@ -25,17 +16,29 @@ class AdminPanel extends HTMLElement {
   constructor() {
     super();
     this._unsubscribe = null;
+    this._lastListSig = null;
+    this._releaseFocus = null;
+    this._wasAdmin = false;
+    // P6b E3: the edit modal announces deletions → reload the trash list
+    this._onTrashChanged = () => this._loadTrash();
+    // P6c E4: the newest trash entries (for game-aware restore wording)
+    this._trashEntries = [];
   }
 
   connectedCallback() {
     this.render();
+    this._wasAdmin = store.state.role === 'admin';
+    if (this._wasAdmin) this._loadTrash(); // restored session (no role transition)
+    document.addEventListener('trash-changed', this._onTrashChanged);
     this._unsubscribe = store.subscribe((state) => {
       this._updatePanel(state);
-    });
+    }, ['adminSelection', 'adminSelectionUpdatedAt', 'isAdminConnected', 'role', 'mediaMode']);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) this._unsubscribe();
+    document.removeEventListener('trash-changed', this._onTrashChanged);
+    this._lastListSig = null;
   }
 
   render() {
@@ -43,7 +46,7 @@ class AdminPanel extends HTMLElement {
     const count = adminSelection.length;
     const time = this._formatTime(adminSelectionUpdatedAt);
 
-    this.innerHTML = `
+    this.innerHTML = html`
       <div class="admin-panel">
         <div class="admin-panel-header">
           <div class="admin-panel-title">
@@ -89,599 +92,95 @@ class AdminPanel extends HTMLElement {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            افزودن فیلم
+            <span id="addMovieBtnLabel">${store.state.mediaMode === 'games' ? 'افزودن بازی' : 'افزودن فیلم'}</span>
+          </button>
+          <button class="btn btn-ghost btn-sm btn-full" id="changePasswordBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            تغییر رمز عبور
           </button>
         </div>
 
         <div class="admin-panel-list" id="selectionList">
-          ${this._renderList(adminSelection)}
+          ${raw(this._renderList(adminSelection))}
         </div>
 
         <div class="admin-panel-divider"></div>
+
+        <div class="admin-trash">
+          <div class="admin-trash-header">سطل زباله</div>
+          <div class="admin-trash-list" id="trashList"></div>
+        </div>
 
         <order-panel></order-panel>
       </div>
 
       <order-card></order-card>
+
+      <div class="change-password-overlay" id="changePasswordOverlay" style="display:none">
+        <div class="change-password-dialog" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+          <div class="change-password-header">
+            <span id="changePasswordTitle">تغییر رمز عبور</span>
+            <button class="btn-icon modal-close" id="changePasswordClose" title="بستن" aria-label="بستن">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+              </svg>
+            </button>
+          </div>
+          <form id="changePasswordForm">
+            <div class="change-password-field">
+              <label for="currentPassword">رمز عبور فعلی</label>
+              <input type="password" id="currentPassword" required autocomplete="current-password" placeholder="••••••">
+            </div>
+            <div class="change-password-field">
+              <label for="newPassword">رمز عبور جدید</label>
+              <input type="password" id="newPassword" required autocomplete="new-password" placeholder="••••••" minlength="8">
+            </div>
+            <div class="change-password-field">
+              <label for="confirmNewPassword">تکرار رمز عبور جدید</label>
+              <input type="password" id="confirmNewPassword" required autocomplete="new-password" placeholder="••••••" minlength="8">
+            </div>
+            <div class="change-password-actions">
+              <button type="button" class="btn btn-ghost btn-sm" id="changePasswordCancel">انصراف</button>
+              <button type="submit" class="btn btn-primary btn-sm" id="changePasswordSubmit">ذخیره</button>
+            </div>
+          </form>
+        </div>
+      </div>
     `;
 
+    this._lastListSig = adminSelection.map(m => m.uid).join('|');
     this._bindEvents();
-    this._applyStyles();
   }
 
-  _applyStyles() {
-    if (document.getElementById('admin-panel-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'admin-panel-styles';
-    style.textContent = `
-      admin-panel {
-        width: 320px;
-        min-width: 320px;
-        background: var(--color-bg-secondary);
-        border-inline-start: 1px solid var(--color-border-primary);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-      admin-panel.hidden {
-        display: none;
-      }
-      .admin-panel {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow-y: auto;
-      }
+  _openChangePassword() {
+    const overlay = this.querySelector('#changePasswordOverlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    if (!this._releaseFocus) {
+      this._releaseFocus = trapFocus(this.querySelector('.change-password-dialog'), {
+        onClose: () => this._closeChangePassword()
+      });
+    }
+  }
 
-      /* ── Header ── */
-      .admin-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-        background: var(--color-bg-tertiary);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-      }
-      .admin-panel-title {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-base);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .admin-connection-status {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: var(--font-size-xs);
-        color: var(--color-text-tertiary);
-        padding: 3px 10px;
-        border-radius: var(--radius-full);
-        background: var(--color-bg-primary);
-        border: 1px solid var(--color-border-primary);
-      }
-      .admin-connection-status .status-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--color-text-muted);
-        flex-shrink: 0;
-      }
-      .admin-connection-status.connected .status-dot {
-        background: #22c55e;
-        box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
-      }
-      .admin-connection-status.connected {
-        color: #22c55e;
-      }
-      .admin-connection-status.disconnected .status-dot {
-        background: #ef4444;
-        box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
-      }
-      .admin-connection-status.disconnected {
-        color: #ef4444;
-      }
-
-      /* ── Stats ── */
-      .admin-panel-stats {
-        padding: var(--space-3) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-        background: var(--color-bg-secondary);
-      }
-      .admin-stat {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-2) 0;
-      }
-      .admin-stat + .admin-stat {
-        border-top: 1px solid var(--color-border-primary);
-      }
-      .admin-stat-label {
-        font-size: var(--font-size-sm);
-        color: var(--color-text-secondary);
-      }
-      .admin-stat-value {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-        font-family: var(--font-family-mono);
-        direction: ltr;
-      }
-      .admin-stat-time {
-        font-family: var(--font-family-primary);
-        font-weight: var(--font-weight-medium);
-        direction: rtl;
-      }
-
-      /* ── Actions ── */
-      .admin-panel-actions {
-        display: flex;
-        gap: var(--space-2);
-        padding: var(--space-3) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-      }
-      .admin-panel-actions .btn {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        border-radius: var(--radius-md);
-        transition: all var(--transition-fast);
-        height: 34px;
-      }
-      .admin-panel-actions .btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        transform: none !important;
-        box-shadow: none !important;
-      }
-      .admin-panel-actions .btn-primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(91, 127, 255, 0.4);
-      }
-      .admin-panel-actions .btn-danger:hover:not(:disabled) {
-        opacity: 0.9;
-      }
-
-      /* ── Add Movie ── */
-      .admin-panel-add-movie {
-        padding: var(--space-2) var(--space-5) var(--space-3);
-        border-bottom: 1px solid var(--color-border-primary);
-      }
-      .admin-panel-add-movie .btn-full {
-        width: 100%;
-        height: 34px;
-      }
-
-      /* ── Selection List ── */
-      .admin-panel-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--space-2);
-        min-height: 100px;
-        max-height: 300px;
-      }
-      .admin-panel-divider {
-        height: 1px;
-        background: var(--color-border-primary);
-      }
-
-      /* ── Selection Items ── */
-      .admin-selection-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-md);
-        transition: background var(--transition-base);
-      }
-      .admin-selection-item:hover {
-        background: var(--color-bg-tertiary);
-      }
-      .admin-selection-poster {
-        width: 40px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: var(--radius-sm);
-        background: var(--color-poster-bg);
-      }
-      .admin-selection-info {
-        flex: 1;
-        min-width: 0;
-      }
-      .admin-selection-title {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .admin-selection-meta {
-        font-size: var(--font-size-xs);
-        color: var(--color-text-muted);
-      }
-      .admin-selection-id {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-accent-primary);
-        white-space: nowrap;
-        direction: ltr;
-      }
-      .admin-empty {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: var(--space-8) var(--space-4);
-        text-align: center;
-      }
-      .admin-empty-icon {
-        font-size: 2rem;
-        margin-bottom: var(--space-3);
-        opacity: 0.5;
-      }
-      .admin-empty-text {
-        font-size: var(--font-size-sm);
-        color: var(--color-text-muted);
-        line-height: 1.6;
-      }
-
-      /* Order Panel Styles */
-      order-panel {
-        display: block;
-        flex: 1;
-      }
-      .order-panel {
-        display: flex;
-        flex-direction: column;
-      }
-      .order-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        background: var(--color-bg-tertiary);
-      }
-      .order-panel-title {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .order-count-badge {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        background: var(--gradient-accent);
-        color: white;
-        padding: 2px 8px;
-        border-radius: var(--radius-full);
-        min-width: 20px;
-        text-align: center;
-      }
-      .order-panel-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--space-2);
-      }
-      .order-empty {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: var(--space-6) var(--space-4);
-        text-align: center;
-      }
-      .order-empty-icon {
-        font-size: 1.5rem;
-        margin-bottom: var(--space-2);
-        opacity: 0.5;
-      }
-      .order-empty-text {
-        font-size: var(--font-size-xs);
-        color: var(--color-text-muted);
-        line-height: 1.5;
-      }
-      .order-card {
-        background: var(--color-bg-tertiary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--radius-md);
-        padding: var(--space-3);
-        margin-bottom: var(--space-2);
-        transition: all var(--transition-base);
-      }
-      .order-card:hover {
-        border-color: var(--color-border-secondary);
-      }
-      .order-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--space-2);
-      }
-      .order-card-number {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .order-card-date {
-        font-size: var(--font-size-xs);
-        color: var(--color-text-muted);
-      }
-      .order-card-meta {
-        margin-bottom: var(--space-2);
-      }
-      .order-card-info {
-        display: flex;
-        gap: var(--space-3);
-        font-size: var(--font-size-xs);
-        color: var(--color-text-secondary);
-      }
-      .order-card-movie-count,
-      .order-card-creator {
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-      }
-      .order-card-actions {
-        display: flex;
-        gap: var(--space-2);
-        justify-content: flex-end;
-      }
-      .order-card-actions .btn {
-        padding: var(--space-1) var(--space-2);
-        font-size: var(--font-size-xs);
-        height: 28px;
-        transition: all var(--transition-fast);
-      }
-      .order-card-actions .btn-ghost:hover {
-        background: var(--color-bg-tertiary);
-        color: var(--color-text-primary);
-      }
-      .order-card-actions .btn-danger:hover {
-        opacity: 0.9;
-      }
-
-      /* Order Detail Overlay */
-      order-detail {
-        display: none;
-      }
-      .order-detail-overlay {
-        position: fixed;
-        inset: 0;
-        background: var(--color-bg-overlay);
-        z-index: var(--z-modal);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: var(--space-6);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity var(--transition-base);
-      }
-      .order-detail-overlay.active {
-        opacity: 1;
-        pointer-events: auto;
-      }
-      .order-detail {
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--radius-xl);
-        box-shadow: var(--shadow-xl);
-        max-width: 600px;
-        width: 100%;
-        max-height: 80vh;
-        overflow-y: auto;
-        animation: modalIn 0.3s ease;
-      }
-      @keyframes modalIn {
-        from {
-          opacity: 0;
-          transform: scale(0.95) translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-        }
-      }
-      .order-detail-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-        position: sticky;
-        top: 0;
-        background: var(--color-bg-secondary);
-        z-index: 10;
-      }
-      .order-detail-title {
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .order-detail-close {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-full);
-        background: var(--color-bg-tertiary);
-        color: var(--color-text-secondary);
-        transition: all var(--transition-fast);
-      }
-      .order-detail-close:hover {
-        background: var(--color-accent-danger);
-        color: white;
-      }
-      .order-detail-meta {
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-      .order-detail-stat {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .order-detail-stat-label {
-        font-size: var(--font-size-sm);
-        color: var(--color-text-secondary);
-      }
-      .order-detail-stat-value {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-primary);
-      }
-      .order-detail-movies {
-        padding: var(--space-3);
-      }
-      .order-detail-movie {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-md);
-        transition: background var(--transition-base);
-      }
-      .order-detail-movie:hover {
-        background: var(--color-bg-tertiary);
-      }
-      .order-detail-movie-poster {
-        width: 40px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: var(--radius-sm);
-        background: var(--color-poster-bg);
-      }
-      .order-detail-movie-info {
-        flex: 1;
-        min-width: 0;
-      }
-      .order-detail-movie-title {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .order-detail-movie-meta {
-        display: flex;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        color: var(--color-text-muted);
-      }
-      .order-detail-movie-id {
-        font-weight: var(--font-weight-medium);
-        color: var(--color-accent-primary);
-      }
-
-      /* Confirmation Modal Styles */
-      confirm-modal {
-        display: none;
-      }
-      confirm-modal.open {
-        display: block;
-      }
-      confirm-modal .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        backdrop-filter: blur(4px);
-      }
-      confirm-modal .modal-dialog {
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--radius-xl);
-        width: 90%;
-        max-width: 400px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        animation: modalIn 0.3s ease;
-      }
-      confirm-modal .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-      }
-      confirm-modal .modal-header h3 {
-        margin: 0;
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      confirm-modal .modal-body {
-        padding: var(--space-5);
-      }
-      confirm-modal .confirm-message {
-        margin: 0 0 var(--space-6) 0;
-        font-size: var(--font-size-base);
-        color: var(--color-text-secondary);
-        line-height: 1.6;
-        white-space: pre-line;
-      }
-      confirm-modal .form-actions {
-        display: flex;
-        gap: var(--space-3);
-        justify-content: flex-end;
-      }
-      confirm-modal .btn {
-        padding: var(--space-2) var(--space-5);
-        border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        cursor: pointer;
-        transition: all var(--transition-base);
-      }
-      confirm-modal .btn-ghost {
-        background: transparent;
-        border: 1px solid var(--color-border-primary);
-        color: var(--color-text-secondary);
-      }
-      confirm-modal .btn-ghost:hover {
-        background: var(--color-bg-tertiary);
-        color: var(--color-text-primary);
-      }
-      confirm-modal .btn-danger {
-        background: var(--color-accent-danger);
-        border: 1px solid var(--color-accent-danger);
-        color: white;
-      }
-      confirm-modal .btn-danger:hover {
-        opacity: 0.9;
-      }
-    `;
-    document.head.appendChild(style);
+  _closeChangePassword() {
+    const overlay = this.querySelector('#changePasswordOverlay');
+    if (overlay) overlay.style.display = 'none';
+    if (this._releaseFocus) {
+      this._releaseFocus();
+      this._releaseFocus = null;
+    }
   }
 
   _renderList(movies) {
     if (!movies.length) {
-      return `
+      return html`
         <div class="admin-empty">
           <div class="admin-empty-icon">📋</div>
           <div class="admin-empty-text">
-            هنوز آیمی انتخاب نشده است.<br>
+            هنوز آیتمی انتخاب نشده است.<br>
             مشتری در حال انتخاب است.
           </div>
         </div>
@@ -690,13 +189,13 @@ class AdminPanel extends HTMLElement {
 
     return movies.map(m => {
       const isGame = m.type === 'Game';
-      return `
+      return html`
       <div class="admin-selection-item" data-uid="${m.uid}">
         <img
           class="admin-selection-poster"
           src="${m.poster}"
           alt=""
-          onerror="this.style.display='none'"
+          id="admin-poster-${m.uid}"
         />
         <div class="admin-selection-info">
           <div class="admin-selection-title" title="${m.title}">${m.title}</div>
@@ -707,17 +206,69 @@ class AdminPanel extends HTMLElement {
             }
           </div>
         </div>
-        ${!isGame && m.id !== null ? `<div class="admin-selection-id">#${m.id}</div>` : ''}
+        ${hasId(m) ? raw(html`<div class="admin-selection-id">#${m.id}</div>`) : ''}
       </div>
     `;}).join('');
+  }
+
+  // ─── P6b E3: trash (سطل زباله) ────────────────────────────────────────────
+
+  _renderTrash(entries) {
+    if (!entries.length) {
+      return html`<div class="admin-trash-empty">سطل زباله خالی است.</div>`;
+    }
+    return entries.map((e) => html`
+      <div class="admin-trash-item" data-id="${e.id}">
+        <div class="admin-trash-info">
+          <div class="admin-trash-title" title="${e.title || ''}">${e.title || ''}</div>
+          <div class="admin-trash-meta">${this._formatTrashDate(e.deletedAt)} • ${e.originalPaths ? e.originalPaths.length : 0} فایل</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="restore">بازگردانی</button>
+      </div>
+    `).join('');
+  }
+
+  _formatTrashDate(timestamp) {
+    if (!timestamp) return '—';
+    try {
+      return new Date(timestamp).toLocaleDateString('fa-IR');
+    } catch {
+      return '—';
+    }
+  }
+
+  async _loadTrash() {
+    try {
+      const resp = await api('/api/trash');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.entries)) return;
+      // Newest first by deletion time (id desc is only a tiebreak — ids are
+      // Date.now()-based for real deletions but arbitrary in the log)
+      const entries = data.entries.slice().sort((a, b) =>
+        (Date.parse(b.deletedAt) || 0) - (Date.parse(a.deletedAt) || 0) ||
+        (Number(b.id) - Number(a.id)));
+      this._trashEntries = entries; // P6c E4: restore needs the entry's type
+      const list = this.querySelector('#trashList');
+      if (list) list.innerHTML = this._renderTrash(entries);
+    } catch { /* offline or 401 — keep the previous list */ }
   }
 
   _updatePanel(state) {
     const { adminSelection, adminSelectionUpdatedAt, isAdminConnected } = state;
 
+    // P6b E3: trash list loads on the customer→admin role transition
+    const isAdmin = state.role === 'admin';
+    if (isAdmin && !this._wasAdmin) this._loadTrash();
+    this._wasAdmin = isAdmin;
+
     const selectionList = this.querySelector('#selectionList');
     if (selectionList) {
-      selectionList.innerHTML = this._renderList(adminSelection);
+      const sig = adminSelection.map(m => m.uid).join('|');
+      if (sig !== this._lastListSig) {
+        this._lastListSig = sig;
+        selectionList.innerHTML = this._renderList(adminSelection);
+      }
     }
 
     const countEl = this.querySelector('#selectionCount');
@@ -741,6 +292,13 @@ class AdminPanel extends HTMLElement {
       const textEl = statusEl.querySelector('span:last-child');
       if (textEl) textEl.textContent = isAdminConnected ? 'متصل' : 'قطع';
     }
+
+    // P6c E4: the add button follows the media mode («افزودن بازی» in games)
+    const addLabel = this.querySelector('#addMovieBtnLabel');
+    if (addLabel) {
+      const wanted = state.mediaMode === 'games' ? 'افزودن بازی' : 'افزودن فیلم';
+      if (addLabel.textContent !== wanted) addLabel.textContent = wanted;
+    }
   }
 
   _formatTime(timestamp) {
@@ -754,6 +312,10 @@ class AdminPanel extends HTMLElement {
   }
 
   _bindEvents() {
+    this.querySelectorAll('.admin-selection-poster').forEach(img => {
+      img.addEventListener('error', () => { img.style.display = 'none'; });
+    });
+
     this.querySelector('#saveOrderBtn')?.addEventListener('click', () => {
       const { adminSelection } = store.state;
       if (!adminSelection.length) {
@@ -771,7 +333,6 @@ class AdminPanel extends HTMLElement {
           }
         );
       } else {
-        // Fallback: if modal not found, save directly
         console.warn('[ADMIN] Confirm modal not found, saving directly');
         store.saveAdminSelectionAsOrder();
       }
@@ -794,19 +355,97 @@ class AdminPanel extends HTMLElement {
           }
         );
       } else {
-        // Fallback: if modal not found, clear directly
         console.warn('[ADMIN] Confirm modal not found, clearing directly');
         store.clearAdminSelection();
       }
     });
 
-    // Add Movie button
     this.querySelector('#addMovieBtn')?.addEventListener('click', () => {
       const addModal = document.getElementById('addModal');
       if (addModal && typeof addModal.show === 'function') {
         addModal.show();
       } else {
         showToast('خطا: مودال افزودن فیلم یافت نشد', 'error');
+      }
+    });
+
+    // ─── Change password dialog ──────────────────────────────────────────
+    this.querySelector('#changePasswordBtn')?.addEventListener('click', () => this._openChangePassword());
+    this.querySelector('#changePasswordClose')?.addEventListener('click', () => this._closeChangePassword());
+    this.querySelector('#changePasswordCancel')?.addEventListener('click', () => this._closeChangePassword());
+
+    this.querySelector('#changePasswordOverlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'changePasswordOverlay') {
+        this._closeChangePassword();
+      }
+    });
+
+    this.querySelector('#changePasswordForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const current = this.querySelector('#currentPassword')?.value;
+      const pw = this.querySelector('#newPassword')?.value;
+      const confirm = this.querySelector('#confirmNewPassword')?.value;
+
+      if (!current || !pw) {
+        showToast('لطفاً تمام فیلدها را پر کنید', 'error');
+        return;
+      }
+      if (pw.length < 8) {
+        showToast('رمز عبور جدید باید حداقل ۸ کاراکتر باشد', 'error');
+        return;
+      }
+      if (pw !== confirm) {
+        showToast('رمز عبور جدید و تکرار آن مطابقت ندارند', 'error');
+        return;
+      }
+
+      try {
+        const result = await apiPost('/api/auth/change-password', {
+          currentPassword: current,
+          newPassword: pw
+        });
+        if (result.success) {
+          showToast('رمز عبور با موفقیت تغییر کرد', 'success');
+          this._closeChangePassword();
+          this.querySelector('#changePasswordForm').reset();
+        } else {
+          showToast(result.error || 'خطا در تغییر رمز عبور', 'error');
+        }
+      } catch {
+        showToast('خطا در اتصال به سرور', 'error');
+      }
+    });
+
+    // ─── P6b E3: restore from trash (delegated — the list re-renders) ─────
+    this.querySelector('#trashList')?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action="restore"]');
+      if (!btn) return;
+      const row = btn.closest('.admin-trash-item');
+      const id = row ? row.getAttribute('data-id') : null;
+      if (!id) return;
+      // P6c E4: game entries get game wording and refresh the games grid
+      const entry = (this._trashEntries || []).find(x => String(x.id) === String(id));
+      const isGameEntry = !!entry && entry.type === 'Game';
+      btn.disabled = true;
+      try {
+        const resp = await api(`/api/trash/${encodeURIComponent(id)}/restore`, { method: 'POST' });
+        let data = {};
+        try { data = await resp.json(); } catch {}
+        if (resp.ok && data.success) {
+          showToast(isGameEntry
+            ? 'بازی به کتابخانه بازگردانده شد'
+            : 'فیلم به کتابخانه بازگردانده شد', 'success');
+          await this._loadTrash();
+          await store.loadCatalog();
+          if (isGameEntry) await store.fetchGames();
+        } else {
+          btn.disabled = false;
+          showToast((data && data.error) ||
+            (isGameEntry ? 'بازگردانی بازی ناموفق بود' : 'بازگردانی فیلم ناموفق بود'), 'error');
+        }
+      } catch {
+        btn.disabled = false;
+        showToast('خطا در اتصال به سرور', 'error');
       }
     });
   }

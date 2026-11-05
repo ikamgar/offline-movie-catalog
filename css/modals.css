@@ -1,0 +1,403 @@
+/* ============================================================
+   MOVIE CATALOG - MODAL SYSTEM (P5b consolidation)
+   ------------------------------------------------------------
+   One shared structure for every dialog: overlay foundation,
+   dialog foundation, close button, keyframes - each modal then
+   adds only its own modifiers.
+
+   Replaces:
+   - the style block injected by login-modal.js
+   - the style block injected by confirm-modal.js
+   - the modal/overlay sections of css/components.css
+     (diagnostics, shortcuts, edit/add, movie-detail)
+   - the change-password + order-detail overlays that were
+     injected by admin-panel.js (their form/content styles
+     live in css/admin.css)
+   ============================================================ */
+
+/* ---- Animations (single global definitions; @keyframes are
+        global regardless of which file declares them) ---- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ---- Host visibility ---- */
+login-modal {
+  display: none;
+}
+
+login-modal.open {
+  display: block;
+}
+
+confirm-modal {
+  display: none;
+}
+
+confirm-modal.open {
+  display: block;
+}
+
+edit-modal.hidden {
+  display: none;
+}
+
+add-modal.hidden {
+  display: none;
+}
+
+movie-detail.hidden {
+  display: none;
+}
+
+order-detail {
+  display: none;
+}
+
+.modal-backdrop.hidden,
+diagnostics-modal.hidden {
+  display: none;
+}
+
+/* ---- Overlay foundation (every modal backdrop) ---- */
+login-modal .modal-overlay,
+confirm-modal .modal-overlay,
+.change-password-overlay,
+.order-detail-overlay,
+.modal-backdrop,
+.edit-modal-backdrop,
+.movie-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+
+/* Overlay modifiers */
+login-modal .modal-overlay,
+confirm-modal .modal-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.change-password-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.modal-backdrop,
+.edit-modal-backdrop,
+.movie-detail-backdrop,
+.order-detail-overlay {
+  background: var(--color-bg-overlay);
+  padding: var(--space-6);
+}
+
+.modal-backdrop {
+  animation: fadeIn 0.2s ease;
+}
+
+.order-detail-overlay {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+}
+
+.order-detail-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---- Dialog foundation (every modal box) ---- */
+login-modal .modal-dialog,
+confirm-modal .modal-dialog,
+.change-password-dialog,
+.order-detail,
+.modal,
+.edit-modal,
+.movie-detail {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+}
+
+/* Dialog modifiers */
+login-modal .modal-dialog,
+confirm-modal .modal-dialog {
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 400px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalIn 0.3s ease;
+}
+
+.change-password-dialog {
+  border-radius: var(--radius-lg);
+  width: 340px;
+  max-width: 90vw;
+  padding: var(--space-5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.order-detail {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalIn 0.3s ease;
+}
+
+.modal {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalIn 0.3s ease;
+}
+
+.edit-modal {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 500px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: modalIn 0.3s ease;
+}
+
+.movie-detail {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: modalIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Shared close button (system-wide look) ---- */
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: var(--color-accent-danger);
+  color: white;
+}
+
+.edit-modal-close {
+  width: 36px;
+  height: 36px;
+}
+
+.movie-detail-close {
+  width: 32px;
+  height: 32px;
+}
+
+/* ---- System header (diagnostics / shortcuts) ---- */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.modal-body {
+  padding: var(--space-5) var(--space-6);
+}
+
+/* ---- Edit/add modal shell ---- */
+.edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.edit-modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.edit-modal-body {
+  padding: var(--space-5) var(--space-6);
+}
+
+/* ---- Login modal ---- */
+login-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+login-modal .modal-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+login-modal .modal-body {
+  padding: var(--space-5);
+}
+
+login-modal .form-group {
+  margin-bottom: var(--space-4);
+}
+
+login-modal .form-group label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+login-modal .form-group input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-input);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-base);
+  box-sizing: border-box;
+  direction: ltr;
+  text-align: left;
+}
+
+login-modal .form-group input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px rgba(91, 127, 255, 0.2);
+}
+
+login-modal .form-group input::placeholder {
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+  direction: ltr;
+  text-align: left;
+}
+
+login-modal .form-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-start;
+  margin-top: var(--space-6);
+  direction: rtl;
+}
+
+login-modal .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- Confirm modal ---- */
+confirm-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+confirm-modal .modal-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+confirm-modal .modal-body {
+  padding: var(--space-5);
+}
+
+confirm-modal .confirm-message {
+  margin: 0 0 var(--space-6) 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+confirm-modal .form-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+/* ---- Shared modal buttons (login + confirm, previously duplicated per file) ---- */
+login-modal .btn,
+confirm-modal .btn {
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+login-modal .btn-ghost,
+confirm-modal .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+}
+
+login-modal .btn-ghost:hover,
+confirm-modal .btn-ghost:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+login-modal .btn-primary,
+confirm-modal .btn-primary {
+  background: var(--color-accent-primary);
+  border: 1px solid var(--color-accent-primary);
+  color: white;
+}
+
+login-modal .btn-primary:hover,
+confirm-modal .btn-primary:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}

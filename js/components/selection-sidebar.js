@@ -4,42 +4,46 @@
  */
 
 import { store, showToast } from '../store.js';
+import { html, raw } from '../utils/html.js';
 
 class SelectionSidebar extends HTMLElement {
   constructor() {
     super();
     this._unsubscribe = null;
+    this._lastListSig = null;
+    this._lastMediaMode = null;
   }
 
   connectedCallback() {
+    this._lastMediaMode = store.state.mediaMode;
     this.render();
-    this._prevMediaMode = store.state.mediaMode;
     this._unsubscribe = store.subscribe((state) => {
-      const mediaModeChanged = state.mediaMode !== this._prevMediaMode;
-      this._prevMediaMode = state.mediaMode;
-      if (mediaModeChanged) {
+      if (state.mediaMode !== this._lastMediaMode) {
+        this._lastMediaMode = state.mediaMode;
+        this._lastListSig = null;
         this.render();
-      } else {
-        this._updateList(state.selectedMovies);
-        this._updateCount(state.selectedMovies.length);
+        return;
       }
-    });
+      this._updateList(state.selectedMovies);
+      this._updateCount(state.selectedMovies.length);
+    }, ['mediaMode', 'selectedMovies']);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) this._unsubscribe();
+    this._lastListSig = null;
   }
 
   render() {
     const { selectedMovies } = store.state;
 
-    this.innerHTML = `
+    this.innerHTML = html`
       <div class="selection-header">
         <div class="selection-title">
           انتخاب‌شده‌ها
           <span class="selection-count-badge" id="selectionCount">${selectedMovies.length}</span>
         </div>
-        <button class="btn-icon" id="closeSelection" title="بستن پنل">
+        <button class="btn-icon" id="closeSelection" title="بستن پنل" aria-label="بستن پنل">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
           </svg>
@@ -51,17 +55,18 @@ class SelectionSidebar extends HTMLElement {
         </button>
       </div>
       <div class="selection-list" id="selectionList">
-        ${this._renderList(selectedMovies)}
+        ${raw(this._renderList(selectedMovies))}
       </div>
     `;
 
+    this._lastListSig = selectedMovies.map(m => m.uid).join('|');
     this._bindEvents();
   }
 
   _renderList(movies) {
     if (!movies.length) {
       const isGames = store.state.mediaMode === 'games';
-      return `
+      return html`
         <div class="selection-empty">
           <div class="selection-empty-icon">${isGames ? '🎮' : '📋'}</div>
           <div class="selection-empty-text">
@@ -74,7 +79,7 @@ class SelectionSidebar extends HTMLElement {
 
     return movies.map(m => {
       const isGame = m.type === 'Game';
-      return `
+      return html`
       <div class="selection-item" data-uid="${m.uid}">
         <button class="selection-item-remove" data-action="remove" title="حذف">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -85,16 +90,16 @@ class SelectionSidebar extends HTMLElement {
           class="selection-item-poster"
           src="${m.poster}"
           alt=""
-          onerror="this.style.display='none'"
+          id="sel-poster-${m.uid}"
         />
         <div class="selection-item-info">
           <div class="selection-item-title" title="${m.title}">${m.title}</div>
           ${isGame
-            ? `<div class="selection-item-platforms">${(m.platforms || []).map(p => `<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`).join(' ')}</div>`
-            : `${m.year ? `<div class="selection-item-year">${m.year}</div>` : ''}`
+            ? raw(html`<div class="selection-item-platforms">${raw((m.platforms || []).map(p => html`<span class="platform-badge platform-badge--${p.toLowerCase()}">${p}</span>`).join(' '))}</div>`)
+            : raw(m.year ? html`<div class="selection-item-year">${m.year}</div>` : '')
           }
         </div>
-        ${!isGame && m.id !== null ? `<div class="selection-item-id">#${m.id}</div>` : ''}
+        ${!isGame && m.id !== null ? raw(html`<div class="selection-item-id">#${m.id}</div>`) : ''}
       </div>
     `;}).join('');
   }
@@ -112,21 +117,39 @@ class SelectionSidebar extends HTMLElement {
       const removeBtn = e.target.closest('[data-action="remove"]');
       if (!removeBtn) return;
       const item = removeBtn.closest('.selection-item');
-      const uid = item.dataset.uid; // Canonical identity — never null
+      const uid = item.dataset.uid;
 
       item.classList.add('removing');
-      item.addEventListener('animationend', () => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
         store.deselect(uid);
-      }, { once: true });
+      };
+      item.addEventListener('animationend', finish, { once: true });
+      // Timeout fallback — removal must not depend solely on animationend (C6)
+      setTimeout(finish, 400);
+    });
+
+    this.querySelectorAll('.selection-item-poster').forEach(img => {
+      img.addEventListener('error', () => { img.style.display = 'none'; });
     });
   }
 
   _updateList(movies) {
+    const sig = movies.map(m => m.uid).join('|');
+    if (sig === this._lastListSig) return;
+    this._lastListSig = sig;
+
     const list = this.querySelector('#selectionList');
     if (list) list.innerHTML = this._renderList(movies);
 
     const actions = this.querySelector('#selectionActions');
     if (actions) actions.style.display = movies.length ? '' : 'none';
+
+    this.querySelectorAll('.selection-item-poster').forEach(img => {
+      img.addEventListener('error', () => { img.style.display = 'none'; });
+    });
   }
 
   _updateCount(count) {

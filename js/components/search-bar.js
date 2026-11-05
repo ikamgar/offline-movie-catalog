@@ -9,20 +9,27 @@ import { debounce } from '../utils/helpers.js';
 class SearchBar extends HTMLElement {
   constructor() {
     super();
-    this._debouncedSearch = debounce((q) => store.setSearch(q), 150);
+    this._debouncedSearch = debounce((q) => store.setSearch(q), 120);
+    this._unsubs = [];
+    this._onDocKeydown = null;
   }
 
   connectedCallback() {
     this.render();
     this._bindEvents();
     this._updatePlaceholder();
-    this._unsubscribeMediaMode = store.subscribe((state) => {
+    this._unsubs.push(store.subscribe(() => {
       this._updatePlaceholder();
-    });
+    }, ['mediaMode']));
   }
 
   disconnectedCallback() {
-    if (this._unsubscribeMediaMode) this._unsubscribeMediaMode();
+    for (const unsub of this._unsubs) unsub();
+    this._unsubs = [];
+    if (this._onDocKeydown) {
+      document.removeEventListener('keydown', this._onDocKeydown);
+      this._onDocKeydown = null;
+    }
   }
 
   _updatePlaceholder() {
@@ -81,7 +88,7 @@ class SearchBar extends HTMLElement {
       input.focus();
     });
 
-    document.addEventListener('keydown', (e) => {
+    this._onDocKeydown = (e) => {
       if (e.key === '/' && !this._isInputFocused()) {
         e.preventDefault();
         input.focus();
@@ -93,15 +100,16 @@ class SearchBar extends HTMLElement {
         shortcut.style.display = 'block';
         input.blur();
       }
-    });
+    };
+    document.addEventListener('keydown', this._onDocKeydown);
 
-    store.subscribe((state) => {
+    this._unsubs.push(store.subscribe((state) => {
       if (state.searchQuery === '') {
         input.value = '';
         clearBtn.style.display = 'none';
         shortcut.style.display = 'block';
       }
-    });
+    }, ['searchQuery']));
   }
 
   _isInputFocused() {

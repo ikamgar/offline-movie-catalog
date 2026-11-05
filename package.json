@@ -1,13 +1,30 @@
 {
   "name": "movie-catalog",
-  "version": "5.4.0",
+  "version": "6.0.0",
   "description": "Professional Digital Movie Library Manager — auto-scanning, indexing, and caching",
   "main": "server.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node scripts/run-tests.js unit",
+    "test:ui": "node scripts/run-tests.js ui",
+    "test:all": "node scripts/run-tests.js all",
+    "test:repro": "node mimo/repro/repro-backend.js",
+    "lint": "eslint ."
   },
   "dependencies": {
     "express": "^4.21.0",
     "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "playwright": "^1.44.0"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.5"
   }
 }

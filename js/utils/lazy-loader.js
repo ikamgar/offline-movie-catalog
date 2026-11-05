@@ -34,6 +34,11 @@ class LazyLoader {
 
   _loadElement(el) {
     if (el.tagName === 'IMG' && el.dataset.src) {
+      // srcset before src so the browser picks the right candidate in one pass
+      if (el.dataset.srcset) {
+        el.srcset = el.dataset.srcset;
+        el.removeAttribute('data-srcset');
+      }
       el.src = el.dataset.src;
       el.removeAttribute('data-src');
       el.classList.add('loaded');

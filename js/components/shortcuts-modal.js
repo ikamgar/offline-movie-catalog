@@ -3,10 +3,13 @@
  * Keyboard shortcuts reference modal
  */
 
+import { trapFocus } from '../utils/dialog.js';
+
 class ShortcutsModal extends HTMLElement {
   constructor() {
     super();
     this._handleKeydown = this._handleKeydown.bind(this);
+    this._releaseFocus = null;
   }
 
   connectedCallback() {
@@ -21,20 +24,29 @@ class ShortcutsModal extends HTMLElement {
   show() {
     this.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    if (!this._releaseFocus) {
+      this._releaseFocus = trapFocus(this.querySelector('.modal'), {
+        onClose: () => this.hide()
+      });
+    }
   }
 
   hide() {
     this.classList.add('hidden');
     document.body.style.overflow = '';
+    if (this._releaseFocus) {
+      this._releaseFocus();
+      this._releaseFocus = null;
+    }
   }
 
   render() {
     this.className = 'modal-backdrop hidden';
     this.innerHTML = `
-      <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
         <div class="modal-header">
-          <h3 class="modal-title">میانبرهای صفحه‌کلید</h3>
-          <button class="btn-icon" id="closeShortcuts">
+          <h3 class="modal-title" id="shortcutsTitle">میانبرهای صفحه‌کلید</h3>
+          <button class="btn-icon modal-close" id="closeShortcuts" aria-label="بستن">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
             </svg>
@@ -79,9 +91,6 @@ class ShortcutsModal extends HTMLElement {
     if (e.key === '?' && !this._isInputFocused()) {
       e.preventDefault();
       this.show();
-    }
-    if (e.key === 'Escape' && !this.classList.contains('hidden')) {
-      this.hide();
     }
   }
 

@@ -3,11 +3,18 @@
  *
  * Single source of truth for all movie list ordering.
  * Each media type has its own sorting strategy.
- *
- * v5.4.0: Version update
  */
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
+
+/**
+ * Shared Persian collator (P5a / D3).
+ * Single string-comparison mechanism for titles and genres:
+ * Persian-aware ordering, numeric digit sequences, case/diacritic-insensitive.
+ * Type-specific rules (I11) and genre pinning are unaffected — this only
+ * replaces the old localeCompare(..., 'en', ...) mechanism.
+ */
+const faCollator = new Intl.Collator('fa', { numeric: true, sensitivity: 'base' });
 
 /**
  * Extract the numeric value from an ID string.
@@ -85,7 +92,7 @@ function compareIranian(a, b) {
 function compareSeries(a, b) {
   const ta = normalizedSeriesTitle(a.title);
   const tb = normalizedSeriesTitle(b.title);
-  return ta.localeCompare(tb, 'en', { numeric: true, sensitivity: 'base' });
+  return faCollator.compare(ta, tb);
 }
 
 // ─── Type Priority for "All Movies" ─────────────────────────────────────────
@@ -121,12 +128,13 @@ function compareMovies(a, b) {
       return compareIranian(a, b);
     case 'Series':
       return compareSeries(a, b);
-    default:
+    default: {
       // Fallback: year DESC, then title ASC
       const ya = a.year || 0;
       const yb = b.year || 0;
       if (ya !== yb) return yb - ya;
-      return (a.title || '').localeCompare(b.title || '', 'en', { numeric: true });
+      return faCollator.compare(a.title || '', b.title || '');
+    }
   }
 }
 
@@ -169,6 +177,7 @@ function getMovieComparator() {
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
 export {
+  faCollator,
   numericId,
   normalizedSeriesTitle,
   compareMovie,

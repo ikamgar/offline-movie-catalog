@@ -1,0 +1,17 @@
+/* Print popup styles for "print selected IDs" (P5b consolidation).
+   Was a <style> string inside store.js printSelectedIds(); loaded by
+   the popup document via <link> — window.onload fires only after the
+   stylesheet resolves, so print output is unchanged. */
+body {
+  font-family: monospace;
+  padding: 40px;
+  font-size: 14px;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+pre {
+  white-space: pre-wrap;
+}

@@ -4,22 +4,19 @@ node_modules/
 # ── Runtime Data ──────────────────────────────────────────────
 data/catalog.json
 data/orders.json
+data/auth.json
+data/metadata.json
 data/backups/
+data/thumbs/
+logs/
+config.json
 
 # ── Movie Library (media files, too large for Git) ───────────
 Library/
 
-# ── Generated Poster Images ──────────────────────────────────
-posters/
-
-# ── Logs ──────────────────────────────────────────────────────
-*.log
-logs/
-
 # ── Environment & Secrets ────────────────────────────────────
 .env
 .env.*
-.env.local
 
 # ── OS Generated Files ───────────────────────────────────────
 Thumbs.db

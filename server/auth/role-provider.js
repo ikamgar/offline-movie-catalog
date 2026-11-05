@@ -12,7 +12,8 @@
  * The WebSocket layer remains unchanged.
  */
 
-const VALID_ROLES = new Set(['customer', 'manager']);
+const { WS_ROLES } = require('../../backend/constants');
+const VALID_ROLES = new Set(WS_ROLES);
 
 /**
  * Get the role for a new WebSocket connection.

@@ -398,18 +398,6 @@
     font-size: var(--font-size-xs);
   }
 
-  /* ---- Floating Selection Mobile ---- */
-  .floating-selection {
-    left: var(--space-3);
-    right: var(--space-3);
-    transform: none;
-    width: auto;
-    bottom: 70px;
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-lg);
-    justify-content: center;
-  }
-
   /* ---- Movie Detail Modal Mobile ---- */
   .movie-detail-backdrop {
     padding: var(--space-3);
@@ -532,12 +520,6 @@
     padding: var(--space-1) 0;
   }
 
-  .floating-selection {
-    bottom: 60px;
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--font-size-xs);
-  }
-
   .app-footer-content {
     padding: var(--space-1) var(--space-3);
     font-size: 0.625rem;
@@ -554,10 +536,6 @@
 
   .movie-detail-poster {
     height: 150px;
-  }
-
-  .floating-selection {
-    bottom: 50px;
   }
 }
 

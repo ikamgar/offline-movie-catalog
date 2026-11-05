@@ -22,26 +22,28 @@
  *   Library/Iranian/...          → type = "Iranian",  genres = []
  */
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif']);
+const { IMAGE_EXTENSIONS: IMAGE_EXTENSIONS_LIST } = require('./constants');
+const IMAGE_EXTENSIONS = new Set(IMAGE_EXTENSIONS_LIST);
 
+// Technical tokens only — ambiguous title words (Web, Amazon, Apple, Disney,
+// Netflix, Hulu, HBO, Limited, Extended, Multi, Final Cut, Uncut, AMZN, NF,
+// DSNP, itunes, DC, SE, CE, …) were removed so real titles survive (DATA-12).
 const RELEASE_TAGS = [
   'BluRay', 'Blu-Ray', 'BDRip', 'BDRemux', 'BD',
-  'WEB-DL', 'WEBDL', 'WEBRip', 'WEB', 'Web',
+  'WEB-DL', 'WEBDL', 'WEBRip',
   'HDRip', 'HDTV', 'DVDRip', 'DVD', 'VHS',
   'REMUX', 'Remux',
   '2160p', '1080p', '720p', '480p', '4K', 'UHD',
   'HDR', 'HDR10', 'HDR10+', 'Dolby Vision', 'DV', 'DoVi',
   'HEVC', 'H.265', 'x265', 'x264', 'H.264', 'AVC', 'AV1',
   'AAC', 'AC3', 'DTS', 'FLAC', 'TrueHD', 'Atmos', 'DD5',
-  'Director\'s Cut', 'Directors Cut', 'Extended Edition', 'Extended',
-  'Theatrical Cut', 'Theatrical', 'Final Cut', 'Ultimate Cut',
-  'Unrated', 'Uncut', 'IMAX', 'Proper', 'Repack', 'Rerip',
+  'Directors Cut', "Director's Cut",
+  'Theatrical Cut', 'Theatrical', 'Ultimate Cut',
+  'Unrated', 'IMAX', 'Proper', 'Repack', 'Rerip',
   'INTERNAL', 'TS', 'CAM', 'TELECINE', 'TELESYNC', 'WORKPRINT',
-  'DC', 'SE', 'CE', 'Criterion', 'Special Edition', 'Anniversary Edition',
-  'Limited', 'Dual Audio', 'Multi', 'Subbed', 'Dubbed',
-  'AMZN', 'NF', 'Netflix', 'Amazon', 'Disney', 'Hulu', 'HBO',
-  'DSNP', 'ATVP', 'PMTP', 'APPLE', 'iTunes',
-  'PROPER', 'REPACK', 'RERIP', 'READNFO'
+  'Criterion', 'Special Edition', 'Anniversary Edition',
+  'Dual Audio', 'Subbed', 'Dubbed',
+  'READNFO', 'PROPER', 'REPACK', 'RERIP'
 ];
 
 // ─── TYPE CONFIGURATION (single source of truth) ────────────────────────────
@@ -58,38 +60,146 @@ const TYPE_MAP = {
 
 const DEFAULT_TYPE = 'Movie';
 
+// Exact technical tokens (case-insensitive), used for bracket-group checks.
+const TECHNICAL_TOKENS = new Set(RELEASE_TAGS.map(t => t.toLowerCase()));
+
+function isTechnicalGroup(inner) {
+  const s = inner.trim();
+  if (!s) return false;
+  if (TECHNICAL_TOKENS.has(s.toLowerCase())) return true;
+  const tokens = s.split(/\s+/);
+  return tokens.every(t => TECHNICAL_TOKENS.has(t.toLowerCase()));
+}
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Longest-first so "Special Edition" wins over any shorter substring.
+const TECHNICAL_TAGS_SORTED = [...RELEASE_TAGS].sort((a, b) => b.length - a.length);
+
 /**
- * Clean a movie title by removing release tags, brackets, and extra whitespace.
+ * Clean a movie title: NFC-normalise, strip technical bracket/paren groups and
+ * standalone technical tokens, collapse whitespace, trim. Keeps ZWNJ.
+ * Never strips ambiguous title words (DATA-12).
  */
 function cleanTitle(raw) {
-  let title = raw;
+  let title = String(raw).normalize('NFC');
 
-  // Remove bracketed content: [1080p], [BluRay], etc.
-  title = title.replace(/\[[^\]]*\]/g, ' ');
+  title = title.replace(/\[([^\]]*)\]/g, (match, inner) =>
+    isTechnicalGroup(inner) ? ' ' : match);
+  title = title.replace(/\(([^)]*)\)/g, (match, inner) =>
+    isTechnicalGroup(inner) ? ' ' : match);
 
-  // Remove parenthesized tags that look like release info (not the year)
-  // Keep parentheses that are part of the title (e.g., "Shelter (2026)")
-  title = title.replace(/\((?:BluRay|WEB-DL|REMUX|HDR|x265|1080p|2160p|720p|4K|UHD|HEVC|Director.s Cut|Extended|Proper|Repack|INTERNAL|AAC|DTS|FLAC|TrueHD|Atmos|IMAX|Unrated|Uncut)\)/gi, ' ');
-
-  // Remove individual release tags as standalone words
-  for (const tag of RELEASE_TAGS) {
-    const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    title = title.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), ' ');
+  for (const tag of TECHNICAL_TAGS_SORTED) {
+    const escaped = escapeRegExp(tag);
+    title = title.replace(new RegExp(`(?<![\\w])${escaped}(?![\\w])`, 'gi'), ' ');
   }
 
-  // Collapse multiple spaces and trim
   title = title.replace(/\s{2,}/g, ' ').trim();
-
   return title;
+}
+
+/**
+ * Prefer a parenthesised year; otherwise take the last bare 19xx/20xx token.
+ * Resolution tags like 1080p/2160p can never match (DATA-17).
+ * Returns { year, yearStr, titlePart }.
+ */
+function extractYear(remainder) {
+  const paren = remainder.match(/\s*\((19\d{2}|20\d{2})\)/);
+  if (paren) {
+    const year = parseInt(paren[1], 10);
+    let titlePart = remainder.slice(0, paren.index) +
+      remainder.slice(paren.index + paren[0].length);
+    titlePart = titlePart.replace(/\s+/g, ' ').trim()
+      .replace(/^[\s\-_.]+/, '').replace(/[\s\-_.]+$/, '');
+    return { year, yearStr: paren[1], titlePart };
+  }
+
+  const re = /(?<!\d)(19\d{2}|20\d{2})(?!\d)/g;
+  let m, last = null;
+  while ((m = re.exec(remainder)) !== null) last = m;
+  if (last) {
+    const year = parseInt(last[0], 10);
+    const before = remainder.slice(0, last.index);
+    const after = remainder.slice(last.index + last[0].length);
+    let titlePart = (before + after).replace(/\s+/g, ' ').trim()
+      .replace(/^[\s\-_.]+/, '').replace(/[\s\-_.]+$/, '');
+    return { year, yearStr: last[0], titlePart };
+  }
+
+  return { year: null, yearStr: null, titlePart: remainder };
+}
+
+/**
+ * Parse a poster filename; detailed result with a machine-readable reason.
+ *
+ * @returns {{ok:true, entry:{id,title,year,extension}} | {ok:false, reason}}
+ *   reasons: no-id | id-too-long | no-year | empty-title | unsupported-ext
+ */
+function parseFilenameEx(filename, type) {
+  if (typeof filename !== 'string' || filename === '') {
+    return { ok: false, reason: 'unsupported-ext' };
+  }
+
+  const dotIdx = filename.lastIndexOf('.');
+  if (dotIdx <= 0) return { ok: false, reason: 'unsupported-ext' };
+
+  const ext = filename.slice(dotIdx + 1).toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(ext)) return { ok: false, reason: 'unsupported-ext' };
+
+  const baseName = filename.slice(0, dotIdx);
+  if (!baseName) return { ok: false, reason: 'empty-title' };
+
+  // Series: no ID, no year — title only (I5)
+  if (type === 'Series') {
+    const raw = baseName.normalize('NFC').trim();
+    if (!raw) return { ok: false, reason: 'empty-title' };
+    let title = cleanTitle(raw);
+    if (!title) title = raw;
+    if (!title) return { ok: false, reason: 'empty-title' };
+    return { ok: true, entry: { id: null, title, year: null, extension: ext } };
+  }
+
+  // Movie / Animation / Iranian: ID = ^(\d{1,6})(?=\D|$)
+  const idMatch = baseName.match(/^(\d+)/);
+  if (!idMatch) return { ok: false, reason: 'no-id' };
+  if (idMatch[1].length > 6) return { ok: false, reason: 'id-too-long' };
+
+  const id = idMatch[1]; // STRING — never parseInt (I2)
+  let remainder = baseName.slice(id.length).replace(/^[\s\-_.]+/, '');
+  if (!remainder) return { ok: false, reason: 'empty-title' };
+
+  let { year, yearStr, titlePart } = extractYear(remainder);
+
+  let title;
+  if (!titlePart.trim()) {
+    // Taking the year would leave an empty title — the number IS the title.
+    if (yearStr) {
+      title = yearStr;
+      year = null;
+    } else {
+      return { ok: false, reason: 'empty-title' };
+    }
+  } else {
+    title = cleanTitle(titlePart);
+    if (!title) title = titlePart.normalize('NFC').trim();
+    if (!title) return { ok: false, reason: 'empty-title' };
+  }
+
+  // Movie requires a year; Animation/Iranian keep it when present (D3, DATA-11).
+  if (type === 'Movie' && year == null) return { ok: false, reason: 'no-year' };
+
+  return { ok: true, entry: { id, title, year, extension: ext } };
 }
 
 /**
  * Parse a poster filename and extract structured movie data.
  *
  * Type-aware parsing rules:
- *   Movie:    id (string), title, year (required, 1900-2099)
- *   Animation: id (string), title, year (optional, null if absent)
- *   Iranian:  id (string), title, year (optional, null if absent)
+ *   Movie:    id (string), title, year (required)
+ *   Animation: id (string), title, year (optional, kept when present)
+ *   Iranian:  id (string), title, year (optional, kept when present)
  *   Series:   id (null), title, year (null — always)
  *
  * @param {string} filename - The poster filename (e.g., "5273-Shelter 2026.jpg")
@@ -97,74 +207,8 @@ function cleanTitle(raw) {
  * @returns {object|null} - Parsed data or null if filename doesn't match pattern
  */
 function parseFilename(filename, type) {
-  // Get extension
-  const dotIdx = filename.lastIndexOf('.');
-  if (dotIdx <= 0) return null;
-
-  const ext = filename.slice(dotIdx + 1).toLowerCase();
-  if (!IMAGE_EXTENSIONS.has(ext)) return null;
-
-  const baseName = filename.slice(0, dotIdx);
-
-  // Series: no ID, no year — title only
-  if (type === 'Series') {
-    const title = cleanTitle(baseName);
-    if (!title) return null;
-    return { id: null, title, year: null, extension: ext };
-  }
-
-  // Movie, Animation, Iranian: extract ID (as STRING — leading zeros are meaningful)
-  const idMatch = baseName.match(/^(\d{1,6})/);
-  if (!idMatch) return null;
-
-  const id = idMatch[1]; // STRING — never parseInt
-  let remainder = baseName.slice(idMatch[1].length);
-
-  // Strip leading separator(s) after the ID
-  remainder = remainder.replace(/^[\s\-_.]+/, '');
-  remainder = remainder.replace(/^\s*-\s+/, '');
-  remainder = remainder.replace(/^\s+-\s*/, '');
-
-  if (!remainder) return null;
-
-  // Try to extract a 4-digit year from the end
-  const yearMatch = remainder.match(/(\d{4})(?!.*\d{4})/);
-
-  if (type === 'Movie') {
-    // Movie: year is REQUIRED
-    if (!yearMatch) return null;
-
-    const year = parseInt(yearMatch[1], 10);
-    if (year < 1900 || year > 2099) return null;
-
-    const yearIdx = remainder.lastIndexOf(yearMatch[1]);
-    let titlePart = remainder.slice(0, yearIdx).trim();
-    titlePart = titlePart.replace(/[\s\-_.]+$/, '');
-
-    if (!titlePart) return null;
-
-    const title = cleanTitle(titlePart);
-    if (!title) return null;
-
-    return { id, title, year, extension: ext };
-  } else {
-    // Animation, Iranian: year is OPTIONAL
-    let titlePart = remainder;
-
-    if (yearMatch) {
-      const yearStr = yearMatch[1];
-      const yearIdx = remainder.lastIndexOf(yearStr);
-      titlePart = remainder.slice(0, yearIdx).trim();
-      titlePart = titlePart.replace(/[\s\-_.]+$/, '');
-    }
-
-    if (!titlePart) return null;
-
-    const title = cleanTitle(titlePart);
-    if (!title) return null;
-
-    return { id, title, year: null, extension: ext };
-  }
+  const r = parseFilenameEx(filename, type);
+  return r.ok ? r.entry : null;
 }
 
 /**
@@ -225,6 +269,7 @@ function parseGameFilename(filename) {
 
 module.exports = {
   parseFilename,
+  parseFilenameEx,
   parseGameFilename,
   cleanTitle,
   classifyFromPath,

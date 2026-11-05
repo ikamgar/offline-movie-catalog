@@ -1,19 +1,11 @@
 /**
  * GenreSidebar Component
  * Single-active category filter sidebar with media types + genres
- *
- * Shows:
- *   - "All Movies" at top
- *   - Media type categories: Animation 🎬, Iranian 🇮🇷, Series 📺
- *   - Separator
- *   - Genre categories: Action, Drama, Romance, etc.
- *
- * When no category is active: "All Movies" is highlighted.
- * When a category is active: that category is highlighted with a ✕ deselect button.
  */
 
-import { store, GENRE_COLORS } from '../store.js';
+import { store } from '../store.js';
 import { getGenreColor } from '../utils/helpers.js';
+import { html, raw } from '../utils/html.js';
 
 const MEDIA_TYPE_CATEGORIES = [
   { value: 'Animation', label: 'انیمیشن', icon: '🎬', color: '#10b981' },
@@ -53,7 +45,7 @@ class GenreSidebar extends HTMLElement {
       if (moviesChanged || genresChanged || categoryChanged || mediaModeChanged || gamesChanged) {
         this.render();
       }
-    });
+    }, ['movies', 'genres', 'selectedCategory', 'mediaMode', 'games']);
   }
 
   disconnectedCallback() {
@@ -68,13 +60,11 @@ class GenreSidebar extends HTMLElement {
   render() {
     const { genres, genreCounts, selectedCategory, movies, totalMovies, mediaMode, games, totalGames } = store.state;
 
-    // Count movies by type
     const typeCounts = {};
     for (const m of movies) {
       typeCounts[m.type] = (typeCounts[m.type] || 0) + 1;
     }
 
-    // Count games by platform
     const platformCounts = {};
     for (const g of games) {
       for (const p of (g.platforms || [])) {
@@ -84,7 +74,7 @@ class GenreSidebar extends HTMLElement {
 
     const isGames = mediaMode === 'games';
 
-    this.innerHTML = `
+    this.innerHTML = html`
       <div class="genre-sidebar-header">
         <span class="genre-sidebar-title">${isGames ? 'دسته‌بندی بازی‌ها' : 'دسته‌بندی‌ها'}</span>
         <span class="genre-sidebar-subtitle">${isGames ? 'انتخاب پلتفرم' : 'انتخاب فیلتر'}</span>
@@ -97,8 +87,8 @@ class GenreSidebar extends HTMLElement {
       </div>
       <div class="genre-list" id="genreList">
         ${isGames
-          ? this._renderGameCategories(GAME_PLATFORM_CATEGORIES, platformCounts, totalGames, selectedCategory)
-          : this._renderAllCategories(genres, genreCounts, typeCounts, totalMovies, selectedCategory)
+          ? raw(this._renderGameCategories(GAME_PLATFORM_CATEGORIES, platformCounts, totalGames, selectedCategory))
+          : raw(this._renderAllCategories(genres, genreCounts, typeCounts, totalMovies, selectedCategory))
         }
       </div>
     `;
@@ -107,7 +97,6 @@ class GenreSidebar extends HTMLElement {
       const item = e.target.closest('.genre-item');
       if (!item) return;
 
-      // ✕ button clicked → clear filter
       if (e.target.closest('.genre-item-close')) {
         store.clearCategory();
         return;
@@ -123,65 +112,65 @@ class GenreSidebar extends HTMLElement {
   }
 
   _renderAllCategories(genres, genreCounts, typeCounts, totalMovies, selectedCategory) {
-    const closeBtn = `<button class="genre-item-close" title="پاک کردن فیلتر" aria-label="پاک کردن فیلتر">
+    const closeBtn = html`<button class="genre-item-close" title="پاک کردن فیلتر" aria-label="پاک کردن فیلتر">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
       </svg>
     </button>`;
 
-    return `
+    return html`
       <div class="genre-item${!selectedCategory ? ' active' : ''}" data-category="" tabindex="0">
         <span class="genre-item-color" style="background: var(--color-accent-primary)"></span>
         <span class="genre-item-name">همه فیلم‌ها</span>
         <span class="genre-item-count">${totalMovies}</span>
       </div>
-      ${MEDIA_TYPE_CATEGORIES.map(t => {
+      ${raw(MEDIA_TYPE_CATEGORIES.map(t => {
         const isActive = selectedCategory === t.value;
-        return `
+        return html`
         <div class="genre-item${isActive ? ' active' : ''}" data-category="${t.value}" tabindex="0">
           <span class="genre-item-color" style="background: ${t.color}"></span>
           <span class="genre-item-name">${t.icon} ${t.label}</span>
           <span class="genre-item-count">${typeCounts[t.value] || 0}</span>
-          ${isActive ? closeBtn : ''}
+          ${isActive ? raw(closeBtn) : ''}
         </div>`;
-      }).join('')}
+      }).join(''))}
       <div class="genre-separator"></div>
-      ${genres.map(g => {
+      ${raw(genres.map(g => {
         const isActive = selectedCategory === g;
-        return `
+        return html`
         <div class="genre-item${isActive ? ' active' : ''}" data-category="${g}" tabindex="0">
           <span class="genre-item-color" style="background: ${getGenreColor(g)}"></span>
           <span class="genre-item-name">${g}</span>
           <span class="genre-item-count">${genreCounts[g] || 0}</span>
-          ${isActive ? closeBtn : ''}
+          ${isActive ? raw(closeBtn) : ''}
         </div>`;
-      }).join('')}
+      }).join(''))}
     `;
   }
 
   _renderGameCategories(platforms, platformCounts, totalGames, selectedCategory) {
-    const closeBtn = `<button class="genre-item-close" title="پاک کردن فیلتر" aria-label="پاک کردن فیلتر">
+    const closeBtn = html`<button class="genre-item-close" title="پاک کردن فیلتر" aria-label="پاک کردن فیلتر">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
       </svg>
     </button>`;
 
-    return `
+    return html`
       <div class="genre-item${!selectedCategory ? ' active' : ''}" data-category="" tabindex="0">
         <span class="genre-item-color" style="background: #00d4ff"></span>
         <span class="genre-item-name">🎮 همه بازی‌ها</span>
         <span class="genre-item-count">${totalGames}</span>
       </div>
-      ${platforms.map(t => {
+      ${raw(platforms.map(t => {
         const isActive = selectedCategory === t.value;
-        return `
+        return html`
         <div class="genre-item${isActive ? ' active' : ''}" data-category="${t.value}" tabindex="0">
           <span class="genre-item-color" style="background: ${t.color}"></span>
           <span class="genre-item-name">${t.icon} ${t.label}</span>
           <span class="genre-item-count">${platformCounts[t.value] || 0}</span>
-          ${isActive ? closeBtn : ''}
+          ${isActive ? raw(closeBtn) : ''}
         </div>`;
-      }).join('')}
+      }).join(''))}
     `;
   }
 

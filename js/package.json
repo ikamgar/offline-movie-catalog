@@ -1,0 +1,4 @@
+{
+  "//": "Intentionally public and kept minimal on purpose: this file only tells Node that the js/ folder is ES modules. Do not add dependencies, scripts or other fields to it.",
+  "type": "module"
+}

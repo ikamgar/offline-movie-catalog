@@ -160,8 +160,49 @@ app-root {
 
 /* Hidden utility for role-based visibility */
 .app-logo.hidden,
-.header-actions.hidden {
+.header-actions.hidden,
+.header-badge.hidden,
+.header-sync.hidden {
   display: none !important;
+}
+
+/* Live customer-selection count in the manager header (P6d E5) */
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+/* P8c G6 — background-reconcile hint in the header (meta.scanning) */
+.header-sync {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  user-select: none;
+  animation: header-sync-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes header-sync-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-sync {
+    animation: none;
+    opacity: 0.8;
+  }
 }
 
 /* Right side container for actions and login/logout button */
@@ -532,7 +573,7 @@ selection-sidebar.collapsed {
   background: var(--color-bg-tertiary);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-panel-head);
 }
 
 .selection-title {
@@ -862,7 +903,7 @@ selection-sidebar.collapsed {
   display: flex;
   align-items: center;
   transition: color var(--transition-base);
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .search-input {
@@ -1022,6 +1063,27 @@ selection-sidebar.collapsed {
 
 .toast.info {
   border-left: 3px solid var(--color-accent-info);
+}
+
+/* Action button in a toast (P6d E5 undo) */
+.toast .toast-action {
+  margin-inline-start: auto;
+  background: transparent;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.toast .toast-action:hover {
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
 }
 
 @keyframes toastIn {
@@ -1296,7 +1358,7 @@ selection-sidebar.collapsed {
   top: 50%;
   transform: translateY(-50%);
   font-size: 10px;
-  z-index: 1;
+  z-index: var(--z-base);
   transition: opacity var(--transition-base);
 }
 
@@ -1340,7 +1402,7 @@ selection-sidebar.collapsed {
 
 .hero-content {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   max-width: 700px;
   margin: 0 auto;
 }
@@ -1427,7 +1489,8 @@ selection-sidebar.collapsed {
 }
 
 .section-link:hover {
-  color: var(--color-accent-primary-hover);
+  color: var(--color-text-accent);
+  text-decoration: underline;
 }
 
 /* ============================================
@@ -1449,4 +1512,28 @@ selection-sidebar.collapsed {
 
 .diag-stat-card {
   text-align: center;
+}
+
+/* ============================================
+   REDUCED MOTION (D7)
+   Freeze entrances/transitions for users who ask for it.
+   The initial loader spinner keeps spinning: it is the
+   essential "app is loading" indicator (WCAG 2.2.2 exception).
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  .initial-spinner {
+    animation: spin 0.7s linear infinite !important;
+  }
 }

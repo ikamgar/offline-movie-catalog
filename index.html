@@ -22,7 +22,7 @@
       min-height: 100vh;
       gap: 1rem;
       color: #9494a8;
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Vazirmatn', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     .initial-spinner {
       width: 32px; height: 32px;
@@ -38,6 +38,8 @@
   <link rel="stylesheet" href="css/themes.css">
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/admin.css">
   <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
@@ -53,15 +55,7 @@
   <!-- Application entry point -->
   <script type="module" src="js/app.js"></script>
 
-  <!-- Remove loader once app is ready -->
-  <script>
-    window.addEventListener('load', () => {
-      document.body.classList.add('loaded');
-      const loader = document.getElementById('initialLoader');
-      if (loader) {
-        setTimeout(() => loader.remove(), 400);
-      }
-    });
-  </script>
+  <!-- Remove loader once app is ready (moved from inline to js/boot.js for CSP) -->
+  <script type="module" src="js/boot.js"></script>
 </body>
 </html>

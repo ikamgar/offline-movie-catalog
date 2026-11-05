@@ -2,38 +2,45 @@
  * OrderPanel Component
  *
  * Displays the list of saved orders in the admin panel.
- * Shows order cards with view/delete functionality.
- *
- * Features:
- *   - List of all saved orders
- *   - Order count display
- *   - Empty state when no orders
- *   - Triggers order detail view
+ * Order cards carry a Persian status chip (P6d E5) and the panel has
+ * status + date filters. Deleting is soft: one click → orders:delete +
+ * a 10 s undo toast (no confirm dialog).
  */
 
-import { store, showToast } from '../store.js';
+import { store } from '../store.js';
+import { html, raw } from '../utils/html.js';
+
+const STATUS_LABELS = {
+  new: 'جدید',
+  preparing: 'در حال آماده‌سازی',
+  done: 'انجام شده'
+};
 
 class OrderPanel extends HTMLElement {
   constructor() {
     super();
     this._unsubscribe = null;
+    this._lastOrdersSig = null;
+    this._statusFilter = '';
+    this._dateFilter = '';
   }
 
   connectedCallback() {
     this.render();
     this._unsubscribe = store.subscribe((state) => {
       this._updatePanel(state);
-    });
+    }, ['orders']);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) this._unsubscribe();
+    this._lastOrdersSig = null;
   }
 
   render() {
     const { orders } = store.state;
 
-    this.innerHTML = `
+    this.innerHTML = html`
       <div class="order-panel">
         <div class="order-panel-header">
           <div class="order-panel-title">
@@ -44,18 +51,54 @@ class OrderPanel extends HTMLElement {
           </div>
           <div class="order-count-badge" id="orderCount">${orders.length}</div>
         </div>
+        <div class="order-panel-filters">
+          <select id="orderStatusFilter" class="order-filter-select" aria-label="فیلتر وضعیت سفارش">
+            <option value="">همه وضعیت‌ها</option>
+            <option value="new">جدید</option>
+            <option value="preparing">در حال آماده‌سازی</option>
+            <option value="done">انجام شده</option>
+          </select>
+          <input type="date" id="orderDateFilter" class="order-filter-date" aria-label="فیلتر تاریخ سفارش">
+        </div>
         <div class="order-panel-list" id="orderList">
-          ${this._renderOrderList(orders)}
+          ${raw(this._renderList(orders))}
         </div>
       </div>
     `;
 
+    this._lastOrdersSig = this._ordersSig(orders);
+    this._bindFilterEvents();
     this._bindEvents();
   }
 
-  _renderOrderList(orders) {
-    if (!orders.length) {
-      return `
+  _ordersSig(orders) {
+    // P6d E5 — include workflow fields so status/info edits re-render the cards
+    return orders.map(o =>
+      `${o.id}:${o.status || ''}:${o.updatedAt || ''}:${o.customerName || ''}:${o.note || ''}`
+    ).join('|');
+  }
+
+  _filterOrders(orders) {
+    let list = orders;
+    if (this._statusFilter) {
+      list = list.filter(o => o.status === this._statusFilter);
+    }
+    if (this._dateFilter) {
+      list = list.filter(o => {
+        const d = new Date(o.createdAt);
+        if (isNaN(d.getTime())) return false;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}` === this._dateFilter;
+      });
+    }
+    return list;
+  }
+
+  _renderList(allOrders) {
+    if (!allOrders.length) {
+      return html`
         <div class="order-empty">
           <div class="order-empty-icon">📦</div>
           <div class="order-empty-text">
@@ -66,10 +109,20 @@ class OrderPanel extends HTMLElement {
       `;
     }
 
-    return orders.map(order => `
+    const orders = this._filterOrders(allOrders);
+    if (!orders.length) {
+      return html`
+        <div class="order-empty">
+          <div class="order-empty-text">سفارشی با این فیلتر یافت نشد.</div>
+        </div>
+      `;
+    }
+
+    return orders.map(order => html`
       <div class="order-card" data-order-id="${order.id}">
         <div class="order-card-header">
           <div class="order-card-number">سفارش ${order.number}</div>
+          <span class="order-status-chip ${order.status || 'done'}">${this._statusLabel(order.status)}</span>
           <div class="order-card-date">${this._formatDate(order.createdAt)}</div>
         </div>
         <div class="order-card-meta">
@@ -106,19 +159,34 @@ class OrderPanel extends HTMLElement {
     `).join('');
   }
 
+  _refreshList() {
+    const orderList = this.querySelector('#orderList');
+    if (!orderList) return;
+    orderList.innerHTML = this._renderList(store.state.orders);
+    this._bindEvents();
+  }
+
   _updatePanel(state) {
     const { orders } = state;
 
     const orderList = this.querySelector('#orderList');
     if (orderList) {
-      orderList.innerHTML = this._renderOrderList(orders);
-      this._bindEvents();
+      const sig = this._ordersSig(orders);
+      if (sig !== this._lastOrdersSig) {
+        this._lastOrdersSig = sig;
+        orderList.innerHTML = this._renderList(orders);
+        this._bindEvents();
+      }
     }
 
     const countEl = this.querySelector('#orderCount');
     if (countEl) {
       countEl.textContent = orders.length;
     }
+  }
+
+  _statusLabel(status) {
+    return STATUS_LABELS[status] || STATUS_LABELS.done;
   }
 
   _formatDate(isoString) {
@@ -137,8 +205,29 @@ class OrderPanel extends HTMLElement {
     }
   }
 
+  _bindFilterEvents() {
+    const statusSel = this.querySelector('#orderStatusFilter');
+    if (statusSel) {
+      statusSel.value = this._statusFilter;
+      statusSel.addEventListener('change', () => {
+        this._statusFilter = statusSel.value;
+        this._refreshList();
+      });
+    }
+
+    const dateInput = this.querySelector('#orderDateFilter');
+    if (dateInput) {
+      dateInput.value = this._dateFilter;
+      const applyDate = () => {
+        this._dateFilter = dateInput.value;
+        this._refreshList();
+      };
+      dateInput.addEventListener('change', applyDate);
+      dateInput.addEventListener('input', applyDate);
+    }
+  }
+
   _bindEvents() {
-    // View order buttons
     this.querySelectorAll('.order-view-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.dataset.orderId;
@@ -150,31 +239,12 @@ class OrderPanel extends HTMLElement {
       });
     });
 
-    // Delete order buttons
     this.querySelectorAll('.order-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const orderId = e.currentTarget.dataset.orderId;
-        const orderNumber = e.currentTarget.dataset.orderNumber;
-        this._showDeleteConfirmation(orderId, orderNumber);
+        // P6d E5 — no confirm dialog: soft delete + 10 s undo toast
+        store.deleteOrder(e.currentTarget.dataset.orderId);
       });
     });
-  }
-
-  _showDeleteConfirmation(orderId, orderNumber) {
-    const modal = document.getElementById('confirmModal');
-    if (modal && typeof modal.show === 'function') {
-      modal.show(
-        `آیا از حذف سفارش ${orderNumber} مطمئن هستید؟\n\nاین عمل قابل بازگشت نیست.`,
-        'تأیید حذف',
-        () => {
-          store.deleteOrder(orderId);
-        }
-      );
-    } else {
-      // Fallback: if modal not found, delete directly
-      console.warn('[ORDER] Confirm modal not found, deleting directly');
-      store.deleteOrder(orderId);
-    }
   }
 }
 

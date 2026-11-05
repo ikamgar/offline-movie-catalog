@@ -3,11 +3,11 @@
  * Orchestrates all components, handles global keyboard shortcuts,
  * and manages the application lifecycle
  *
- * v5.4.0: Realtime architecture update
+ * Changelog: realtime architecture update
  */
 
 import { store, showToast } from './store.js';
-import { throttle } from './utils/helpers.js';
+import { config } from './config.js';
 
 /* ---- Import all Web Components ---- */
 import './components/search-bar.js';
@@ -31,14 +31,29 @@ class App extends HTMLElement {
 
   async connectedCallback() {
     this.renderShell();
-    await store.init();
+    await store.boot();
+    const versionBadge = this.querySelector('#versionBadge');
+    if (versionBadge && config.version) versionBadge.textContent = `v${config.version}`;
     this._bindEvents();
     this._applyState(store.state);
-    document.addEventListener('keydown', this._handleKeydown);
+    this._onKeydown = this._handleKeydown.bind(this);
+    this._onMovieEdit = (e) => {
+      const editModal = document.getElementById('editModal');
+      if (editModal) editModal.show(e.detail.movie);
+    };
+    this._onMovieDetail = (e) => {
+      this.querySelector('#movieDetail').show(e.detail.movie);
+    };
+    document.addEventListener('keydown', this._onKeydown);
+    document.addEventListener('movie-edit', this._onMovieEdit);
+    document.addEventListener('movie-detail', this._onMovieDetail);
   }
 
   disconnectedCallback() {
-    document.removeEventListener('keydown', this._handleKeydown);
+    document.removeEventListener('keydown', this._onKeydown);
+    document.removeEventListener('movie-edit', this._onMovieEdit);
+    document.removeEventListener('movie-detail', this._onMovieDetail);
+    if (this._storeUnsub) this._storeUnsub();
   }
 
   renderShell() {
@@ -47,7 +62,7 @@ class App extends HTMLElement {
         <div class="app-logo" id="appLogo">
           <div class="app-logo-icon">🎬</div>
           <span class="app-logo-text">MovieCatalog</span>
-          <span class="app-logo-badge" id="versionBadge">v5.4.0</span>
+          <span class="app-logo-badge" id="versionBadge"></span>
         </div>
 
         <div class="media-mode-toggle" id="mediaModeToggle">
@@ -65,24 +80,28 @@ class App extends HTMLElement {
           <search-bar></search-bar>
         </div>
 
+        <!-- P8c G6 — visible to every role while the server reconciles -->
+        <span class="header-sync hidden" id="syncIndicator">در حال بروزرسانی…</span>
+
         <div class="header-right">
           <div class="header-actions" id="headerActions">
-            <button class="btn-icon" id="rescanBtn" title="بروزرسانی کتابخانه">
+            <button class="btn-icon" id="rescanBtn" aria-label="بروزرسانی کتابخانه" title="بروزرسانی کتابخانه">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
                 <path d="M21 3v5h-5"/>
               </svg>
             </button>
-            <button class="btn-icon" id="diagnosticsBtn" title="وضعیت سیستم">
+            <button class="btn-icon" id="diagnosticsBtn" aria-label="وضعیت سیستم" title="وضعیت سیستم">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
                 <path d="M12 16v-4"/><path d="M12 8h.01"/>
               </svg>
             </button>
-            <button class="theme-toggle" id="toggleTheme" title="تغییر حالت نمایش (Ctrl+Shift+D)">
+            <button class="theme-toggle" id="toggleTheme" aria-label="تغییر حالت نمایش" title="تغییر حالت نمایش (Ctrl+Shift+D)">
               <span class="theme-toggle-icon moon">🌙</span>
               <span class="theme-toggle-icon sun">☀️</span>
             </button>
+            <span class="header-badge hidden" id="selectionBadge" title="انتخاب‌های مشتری">0</span>
           </div>
           <button class="btn btn-sm btn-ghost header-login-btn" id="loginBtn" title="ورود مدیر">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -174,23 +193,50 @@ class App extends HTMLElement {
       this._applySidebarState();
     });
 
-    /* Movie detail event from cards */
-    document.addEventListener('movie-detail', (e) => {
-      this.querySelector('#movieDetail').show(e.detail.movie);
-    });
-
     /* Subscribe to state changes for sidebar visibility and role */
-    store.subscribe((state) => {
+    this._storeUnsub = store.subscribe((state) => {
       this._applySidebarState();
       this._applyRoleState(state);
       this._applyMediaMode(state.mediaMode);
-    });
+      this._updateSelectionBadge(state);
+      this._updateSyncIndicator(state);
+    }, ['selectionSidebarOpen', 'role', 'mediaMode', 'adminSelection', 'scanning']);
   }
 
   _applyState(state) {
     this._applySidebarState();
     this._applyRoleState(state);
     this._applyMediaMode(state.mediaMode);
+    this._updateSelectionBadge(state);
+    this._updateSyncIndicator(state);
+  }
+
+  /**
+   * P8c G6 — subtle header hint while the server's background reconcile
+   * runs (meta.scanning). Shown to every role, including customers on a
+   * cold start; clears when the catalog reloads with scanning=false.
+   *
+   * @param {object} state
+   */
+  _updateSyncIndicator(state) {
+    const el = this.querySelector('#syncIndicator');
+    if (!el) return;
+    el.classList.toggle('hidden', !state.scanning);
+  }
+
+  /**
+   * Manager header badge — count of items in the live customer selection
+   * (P6d E5). Hidden when the count is 0; only visible inside the admin
+   * header (`#headerActions` is hidden for customers).
+   *
+   * @param {object} state
+   */
+  _updateSelectionBadge(state) {
+    const badge = this.querySelector('#selectionBadge');
+    if (!badge) return;
+    const count = Array.isArray(state.adminSelection) ? state.adminSelection.length : 0;
+    badge.textContent = String(count);
+    badge.classList.toggle('hidden', count === 0);
   }
 
   _applyMediaMode(mediaMode) {
@@ -293,8 +339,6 @@ class App extends HTMLElement {
   }
 
   _handleKeydown(e) {
-    const isInput = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
-
     /* Ctrl+Shift+D: Toggle theme */
     if (e.ctrlKey && e.shiftKey && e.key === 'D') {
       e.preventDefault();
@@ -310,9 +354,10 @@ class App extends HTMLElement {
       }
     }
 
-    /* F5 or Ctrl+R: Rescan (prevent default browser refresh, use API rescan) */
-    if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
-      // Let the browser handle normal refresh — user can also click the rescan button
+    /* Ctrl+B: Toggle the selection panel (FE-15) */
+    if (e.ctrlKey && e.key === 'b') {
+      e.preventDefault();
+      store.toggleSelectionSidebar();
     }
   }
 }

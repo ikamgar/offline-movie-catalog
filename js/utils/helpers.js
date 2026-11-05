@@ -3,6 +3,8 @@
  * Common helpers used across the application
  */
 
+import { config } from '../config.js';
+
 /**
  * Debounce function - delays execution until after wait period
  */
@@ -15,33 +17,10 @@ export function debounce(fn, wait = 250) {
 }
 
 /**
- * Throttle function - limits execution to once per wait period
- */
-export function throttle(fn, wait = 100) {
-  let last = 0;
-  return function (...args) {
-    const now = Date.now();
-    if (now - last >= wait) {
-      last = now;
-      fn.apply(this, args);
-    }
-  };
-}
-
-/**
  * Format number with locale-aware separators
  */
 export function formatNumber(num) {
   return num.toLocaleString();
-}
-
-/**
- * Escape HTML special characters
- */
-export function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 /**
@@ -128,10 +107,12 @@ export function truncate(str, max = 50) {
  */
 export function generatePosterPlaceholder(title, id) {
   const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const safeInitials = String(initials).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const safeId = String(id).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">
     <rect fill="#1a1a24" width="300" height="450"/>
-    <text x="150" y="190" text-anchor="middle" fill="#353548" font-family="sans-serif" font-size="64" font-weight="bold">${initials}</text>
-    <text x="150" y="230" text-anchor="middle" fill="#353548" font-family="monospace" font-size="18">#${id}</text>
+    <text x="150" y="190" text-anchor="middle" fill="#353548" font-family="sans-serif" font-size="64" font-weight="bold">${safeInitials}</text>
+    <text x="150" y="230" text-anchor="middle" fill="#353548" font-family="monospace" font-size="18">#${safeId}</text>
   </svg>`;
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
@@ -150,12 +131,40 @@ export function generatePosterPlaceholder(title, id) {
  * @returns {{ text: string, cls: string } | null}
  */
 export function getBadge(movie) {
-  if (movie.type === 'Animation') return { text: 'انیمیشن دوبله', cls: 'badge--animation' };
-  if (movie.type === 'Series')    return { text: 'سریال',         cls: 'badge--series' };
+  const labels = config.badgeLabels || {};
+  if (movie.type === 'Animation') return { text: labels.animation || '', cls: 'badge--animation' };
+  if (movie.type === 'Series')    return { text: labels.series || '',    cls: 'badge--series' };
   if (movie.type === 'Iranian')   return null;
   if (movie.type === 'Movie') {
-    if (movie.genres.includes('دوبله فارسی')) return { text: 'دوبله فارسی',  cls: 'badge--dubbed' };
-    return { text: 'زیرنویس فارسی', cls: 'badge--subtitle' };
+    if (movie.genres.includes('دوبله فارسی')) return { text: labels.dubbed || '',  cls: 'badge--dubbed' };
+    return { text: labels.subtitle || '', cls: 'badge--subtitle' };
   }
   return null;
+}
+
+/**
+ * Identification label used by copy, print and the order snapshot (D4/FE-06).
+ *
+ * Movies/Animation/Iranian carry a string id, Series carry id:null and
+ * Games carry no id field at all — so: id when present (I2: verbatim string,
+ * leading zeros kept), otherwise the title. Never returns "undefined"/"null".
+ *
+ * @param {{ id?: string|null, title?: string }|null|undefined} item
+ * @returns {string}
+ */
+export function idOrTitle(item) {
+  if (item == null) return '';
+  if (item.id != null && item.id !== '') return String(item.id);
+  return item.title == null ? '' : String(item.title);
+}
+
+/**
+ * True when the item carries a real id — same decision basis as idOrTitle().
+ * Series (id:null) and Games (no id) return false.
+ *
+ * @param {{ id?: string|null, title?: string }|null|undefined} item
+ * @returns {boolean}
+ */
+export function hasId(item) {
+  return item != null && item.id != null && item.id !== '';
 }

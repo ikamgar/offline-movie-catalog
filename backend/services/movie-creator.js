@@ -1,40 +1,82 @@
+'use strict';
+
 /**
- * Movie Creator Service
+ * Movie Creator Service (P3 B8 rewrite).
  *
- * Handles atomic movie creation with rollback on failure.
- * Uses catalog.json as source of truth for ID generation.
- * Copies posters to all selected genre folders.
- *
- * Architecture:
- *   1. Validate all inputs
- *   2. Generate next available ID from database
- *   3. Create timestamped backup
- *   4. Copy poster to all genre folders
- *   5. Update catalog.json
- *   6. Broadcast via WebSocket
- *   7. If ANY step fails → rollback all previous steps
+ * The indexer is the ONLY catalog writer — this module never read/modifies/writes
+ * catalog.json itself. Flow:
+ *   1. Validate with safe-path + id-generator (B4 / P1).
+ *   2. Stage upload under os.tmpdir() (never inside Library/ — DATA-13).
+ *   3. watcher.expect(target paths) so the server's own create is not double-processed.
+ *   4. Write every genre copy with flag:'wx' (never silently overwrite).
+ *   5. All-or-nothing: any write failure rolls back already-written files and
+ *      leaves the index untouched.
+ *   6. Index via addFile(scanFile.entry) per copy; metadataStore; scheduleSave.
+ *   7. Roll back by map key (not bare id) — fixes DATA-09 Series wipe.
+ *   8. Broadcast movie:added through toPublicMovie (SEC-08 whitelist).
  */
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { validateId, safeSegment, resolveInside } = require('../utils/safe-path');
+const { buildMovieFilename } = require('../utils/filename');
+const { metadataKeyFor } = require('../utils/metadata-key');
+const { seriesKey } = require('../utils/series-key');
+const { MOVIE_TYPES, IMAGE_EXTENSIONS: IMAGE_EXTENSIONS_LIST } = require('../constants');
+const CatalogIndexer = require('../indexer');
+const { resolveTypeFolder, scanFile } = require('../scanner');
+const { nextId: generateNextId, assertIdFree } = require('./id-generator');
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif']);
+const IMAGE_EXTENSIONS = new Set(IMAGE_EXTENSIONS_LIST);
+
+// Q6 structured errors (same pattern as movie-editor.js): the client maps
+// `code` → UI behaviour, Persian text is only ever displayed, never parsed.
+function fail(code, status, message) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = status;
+  return err;
+}
+
+function statusOf(err) {
+  if (err && typeof err.status === 'number') return err.status;
+  if (err && (err.code === 'ID_TAKEN' || err.code === 'FILE_EXISTS')) return 409;
+  if (err && (err.code === 'TITLE_REQUIRED' || err.code === 'TITLE_INVALID' ||
+    err.code === 'TYPE_INVALID' || err.code === 'YEAR_INVALID' ||
+    err.code === 'GENRE_REQUIRED' || err.code === 'GENRE_INVALID' ||
+    err.code === 'ID_INVALID' || err.code === 'IMDB_INVALID' ||
+    err.code === 'IMG_REQUIRED' || err.code === 'IMG_INVALID' ||
+    err.code === 'IMG_UNSUPPORTED' || err.code === 'VALIDATION')) return 400;
+  if (err && err.code === 'IMG_TOO_LARGE') return 413;
+  return 500;
+}
 
 class MovieCreator {
   /**
    * @param {string} libraryPath - Root Library path
-   * @param {string} catalogPath - Path to catalog.json
-   * @param {object} indexer - CatalogIndexer instance
+   * @param {string} catalogPath - Path to catalog.json (backups only; not written here)
+   * @param {object} indexer - CatalogIndexer instance (sole catalog writer)
    * @param {object|null} wsServer - WebSocket server for broadcasting
+   * @param {object|null} metadataStore - MetadataStore for imdbRating/plotSummary (DATA-10)
+   * @param {object|null} watcher - LibraryWatcher for expect() (B8)
+   * @param {object} [options]
+   * @param {Function} [options.writeFileSync] - injectable for rollback tests
+   * @param {object|null} [options.diagnostics] - Diagnostics instance to invalidate after create (BUG-2)
+   * @param {Function} [options.log]
    */
-  constructor(libraryPath, catalogPath, indexer, wsServer = null) {
+  constructor(libraryPath, catalogPath, indexer, wsServer = null, metadataStore = null, watcher = null, options = {}) {
     this._libraryPath = libraryPath;
     this._catalogPath = catalogPath;
     this._backupsDir = path.join(path.dirname(catalogPath), 'backups');
     this._indexer = indexer;
     this._wsServer = wsServer;
+    this._metadataStore = metadataStore;
+    this._watcher = watcher;
+    this._diagnostics = options.diagnostics || null;
+    this._writeFile = options.writeFileSync || fs.writeFileSync;
+    this._log = options.log || ((...args) => console.log(...args));
 
-    // Ensure backups directory exists
     if (!fs.existsSync(this._backupsDir)) {
       fs.mkdirSync(this._backupsDir, { recursive: true });
     }
@@ -46,68 +88,148 @@ class MovieCreator {
    * @param {object} movieData - Movie data from frontend
    * @param {Buffer} posterBuffer - Poster image buffer
    * @param {string} posterExtension - Original file extension (jpg, png, etc.)
-   * @returns {object} - Created movie object
+   * @returns {object} - Created movie object (public-safe fields present)
    * @throws {Error} - If any step fails (with rollback)
    */
   async createMovie(movieData, posterBuffer, posterExtension) {
     const rollbackActions = [];
+    let tempDir = null;
+    let movieKey = null;
+    let indexTouched = false;
 
     try {
-      // Step 1: Validate all inputs
       this._validateInputs(movieData, posterBuffer, posterExtension);
 
-      // Step 2: Generate next available ID from database
       const nextId = this._generateNextId(movieData.type);
       const finalId = movieData.id && movieData.id.trim() !== '' ? movieData.id.trim() : nextId;
-
-      // Step 3: Validate the final ID
       this._validateId(finalId, movieData.type);
 
-      // Step 4: Build filename and determine target folders
       const filename = this._buildFilename(finalId, movieData.title, movieData.year, movieData.type, posterExtension);
       const targetFolders = this._getTargetFolders(movieData.type, movieData.genres);
-
-      // Step 5: Check for duplicate filenames
       this._checkDuplicateFilenames(filename, targetFolders);
 
-      // Step 6: Create timestamped backup
+      const targetPaths = targetFolders.map((folder) => path.join(folder, filename));
+
       const backupPath = this._createBackup();
-      rollbackActions.push(() => this._rollbackBackup(backupPath));
+      if (backupPath) {
+        rollbackActions.push(() => this._rollbackBackup(backupPath));
+      }
 
-      // Step 7: Write poster to temp file, then copy to all genre folders
-      const tempDir = path.join(this._libraryPath, '.tmp');
-      this._ensureDirectory(tempDir);
-      const tempPosterPath = path.join(tempDir, `upload_${Date.now()}_${filename}`);
-      fs.writeFileSync(tempPosterPath, posterBuffer);
-      rollbackActions.push(() => this._rollbackFile(tempPosterPath));
+      // Stage under os.tmpdir() — never inside Library/ (DATA-13)
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'movie-upload-'));
+      const tempPosterPath = path.join(tempDir, filename);
+      this._writeFile(tempPosterPath, posterBuffer, { flag: 'wx' });
+      rollbackActions.push(() => this._removeTempDir(tempDir));
 
-      for (const folder of targetFolders) {
-        const targetPath = path.join(folder, filename);
-        this._ensureDirectory(folder);
-        fs.copyFileSync(tempPosterPath, targetPath);
+      // Suppress the watcher for our own creates (B8 / same pattern as movie-editor)
+      if (this._watcher && typeof this._watcher.expect === 'function') {
+        this._watcher.expect(targetPaths);
+      }
+
+      // Write every genre copy with flag:'wx' — never silently overwrite (S6 / B8)
+      const written = [];
+      for (const targetPath of targetPaths) {
+        this._ensureDirectory(path.dirname(targetPath));
+        this._writeFile(targetPath, posterBuffer, { flag: 'wx' });
+        written.push(targetPath);
         rollbackActions.push(() => this._rollbackFile(targetPath));
       }
 
-      // Clean up temp file after all copies succeed
-      if (fs.existsSync(tempPosterPath)) {
-        fs.unlinkSync(tempPosterPath);
-      }
+      // Drop staging file once all copies are on disk
+      this._removeTempDir(tempDir);
+      tempDir = null;
 
-      // Step 8: Update catalog.json
+      // Index the movie via the indexer only (sole catalog writer)
       const newMovie = this._buildMovieObject(movieData, finalId, filename, targetFolders);
-      this._updateCatalog(newMovie);
-      rollbackActions.push(() => this._rollbackCatalogUpdate(newMovie.id));
+      movieKey = CatalogIndexer.getKey(newMovie);
 
-      // Step 9: Broadcast via WebSocket
-      if (this._wsServer) {
-        this._wsServer.broadcastMovieAdded(newMovie);
+      for (const targetPath of targetPaths) {
+        const scan = scanFile(targetPath, this._libraryPath);
+        if (scan && scan.ok) {
+          this._indexer.addFile(scan.entry);
+          indexTouched = true;
+        }
+      }
+      if (!this._indexer.getByUid(newMovie.uid) && !this._indexer._movieMap.has(movieKey)) {
+        this._indexer.addMovieToIndex(newMovie);
+        indexTouched = true;
+      }
+      // Prefer the first written path as absolutePosterPath (stable)
+      const fromIndex = this._indexer._movieMap.get(movieKey);
+      if (fromIndex && written.length) {
+        fromIndex.absolutePosterPath = written[0];
+        fromIndex._posterSet = true;
+        // mtime of the primary copy — keep ?v= in sync with the served file
+        const primaryEntry = this._indexer._fileIndex.get(written[0]);
+        if (primaryEntry && Number.isFinite(primaryEntry.lastModified)) {
+          fromIndex.mtime = primaryEntry.lastModified;
+        }
+        fromIndex.poster = CatalogIndexer.posterUrl(fromIndex);
+        if (movieData.imdbRating !== undefined && movieData.imdbRating !== null) {
+          fromIndex.imdbRating = parseFloat(movieData.imdbRating);
+        }
+        if (movieData.plotSummary) fromIndex.plotSummary = movieData.plotSummary;
       }
 
-      return newMovie;
+      // Manager metadata lives in metadata.json, not the rebuildable cache (DATA-10);
+      // key = the uid via metadataKeyFor (F41) — both objects carry uid
+      if (this._metadataStore) {
+        const uid = fromIndex ? metadataKeyFor(fromIndex) : metadataKeyFor(newMovie);
+        this._metadataStore.set(uid, {
+          imdbRating: newMovie.imdbRating,
+          plotSummary: newMovie.plotSummary
+        });
+        const flushed = this._metadataStore.flush();
+        if (!flushed) {
+          // F33: success must mean durable — a metadata-store write that cannot
+          // persist rolls back every file + index entry written so far and
+          // reports PERSIST_FAILED instead of claiming success.
+          for (const rollback of rollbackActions.reverse()) {
+            try { rollback(); } catch { /* best-effort rollback */ }
+          }
+          if (indexTouched && movieKey) {
+            this._indexer.removeMovieByKey(movieKey);
+          }
+          this._metadataStore.remove(uid);
+          try { this._metadataStore.flush(); } catch { /* best-effort */ }
+          throw fail('PERSIST_FAILED', 500, 'ذخیره متادیتا ناموفق بود');
+        }
+        if (fromIndex) {
+          fromIndex.imdbRating = newMovie.imdbRating;
+          fromIndex.plotSummary = newMovie.plotSummary;
+        }
+        rollbackActions.push(() => {
+          if (this._metadataStore) {
+            this._metadataStore.remove(uid);
+            this._metadataStore.flush();
+          }
+        });
+      }
 
+      if (indexTouched && movieKey) {
+        rollbackActions.push(() => {
+          this._indexer.removeMovieByKey(movieKey);
+        });
+      }
+
+      // Persist cache asynchronously (A5 / P2c pattern) — catalog.json is rebuildable (I1)
+      this._indexer.scheduleSave();
+
+      // Broadcast via WebSocket (public-safe object, SEC-08)
+      if (this._wsServer) {
+        this._wsServer.broadcastMovieAdded(CatalogIndexer.toPublicMovie(fromIndex || newMovie));
+      }
+
+      // BUG-2: watcher.expect suppresses handleFileChange — invalidate so the
+      // next diagnostics report includes this movie (no 30s stale window).
+      if (this._diagnostics && typeof this._diagnostics.invalidate === 'function') {
+        this._diagnostics.invalidate();
+      }
+
+      this._log(`  [MOVIE-CREATOR] Movie added: ${finalId} - ${movieData.title}`);
+      return fromIndex || newMovie;
     } catch (error) {
-      // Rollback all completed steps
-      console.error(`  [MOVIE-CREATOR] Creation failed, rolling back: ${error.message}`);
+      this._log(`  [MOVIE-CREATOR] Creation failed, rolling back: ${error.message}`);
       for (const rollback of rollbackActions.reverse()) {
         try {
           rollback();
@@ -119,194 +241,137 @@ class MovieCreator {
     }
   }
 
-  /**
-   * Validate all inputs before any filesystem operation.
-   */
   _validateInputs(movieData, posterBuffer, posterExtension) {
-    // Validate required fields
     if (!movieData.title || movieData.title.trim() === '') {
-      throw new Error('عنوان فیلم الزامی است');
+      throw fail('TITLE_REQUIRED', 400, 'عنوان فیلم الزامی است');
     }
 
-    if (!movieData.type || !['Movie', 'Animation', 'Iranian', 'Series'].includes(movieData.type)) {
-      throw new Error('نوع فیلم نامعتبر است');
+    if (!movieData.type || !MOVIE_TYPES.includes(movieData.type)) {
+      throw fail('TYPE_INVALID', 400, 'نوع فیلم نامعتبر است');
     }
 
-    // Validate year for Movie type
     if (movieData.type === 'Movie') {
       if (!movieData.year || movieData.year < 1900 || movieData.year > 2099) {
-        throw new Error('سال انتشار برای فیلم الزامی است (1900-2099)');
+        throw fail('YEAR_INVALID', 400, 'سال انتشار برای فیلم الزامی است (1900-2099)');
       }
     }
 
-    // Validate genres for Movie type
     if (movieData.type === 'Movie') {
       if (!movieData.genres || movieData.genres.length === 0) {
-        throw new Error('حداقل یک ژانر برای فیلم الزامی است');
+        throw fail('GENRE_REQUIRED', 400, 'حداقل یک ژانر برای فیلم الزامی است');
       }
     }
 
-    // Validate poster
     if (!posterBuffer || posterBuffer.length === 0) {
-      throw new Error('تصویر پوستر الزامی است');
+      throw fail('IMG_REQUIRED', 400, 'تصویر پوستر الزامی است');
     }
 
     if (!posterExtension || !IMAGE_EXTENSIONS.has(posterExtension.toLowerCase())) {
-      throw new Error('فرمت تصویر نامعتبر است (jpg, jpeg, png, webp, avif)');
+      throw fail('IMG_UNSUPPORTED', 400, 'فرمت تصویر نامعتبر است (jpg, jpeg, png, webp, avif)');
     }
 
-    // Validate IMDB rating if provided
     if (movieData.imdbRating !== undefined && movieData.imdbRating !== null) {
       const rating = parseFloat(movieData.imdbRating);
-      if (isNaN(rating) || rating < 0 || rating > 10) {
-        throw new Error('امتیاز IMDB باید بین 0 تا 10 باشد');
+      if (Number.isNaN(rating) || rating < 0 || rating > 10) {
+        throw fail('IMDB_INVALID', 400, 'امتیاز IMDB باید بین 0 تا 10 باشد');
       }
     }
   }
 
-  /**
-   * Validate the final ID for conflicts.
-   */
   _validateId(id, type) {
-    // Check if ID already exists in catalog
-    const existingMovie = this._indexer.getMovieById(id);
-    if (existingMovie) {
-      throw new Error(`شناسه ${id} قبلاً استفاده شده است`);
+    if (type === 'Series') return;
+    try {
+      validateId(id);
+    } catch (err) {
+      throw fail('ID_INVALID', 400, err.message);
     }
+    // assertIdFree throws with code ID_TAKEN → statusOf maps it to 409
+    assertIdFree(this._indexer, id);
   }
 
-  /**
-   * Generate next available ID from the database (not filesystem).
-   *
-   * @param {string} type - Movie type
-   * @returns {string} - Next available ID
-   */
   _generateNextId(type) {
-    const movies = this._indexer.getMovies();
-    let maxId = 0;
-
-    // Filter movies by type and find highest ID
-    for (const movie of movies) {
-      if (movie.type === type && movie.id) {
-        const numId = parseInt(movie.id, 10);
-        if (!isNaN(numId) && numId > maxId) {
-          maxId = numId;
-        }
-      }
-    }
-
-    // Generate next ID based on type
-    const nextNum = maxId + 1;
-
-    switch (type) {
-      case 'Movie':
-        return String(nextNum).padStart(4, '0');
-      case 'Animation':
-        return String(nextNum).padStart(5, '0');
-      case 'Iranian':
-        return String(nextNum).padStart(4, '0');
-      case 'Series':
-        return null; // Series don't use IDs
-      default:
-        return String(nextNum);
-    }
+    return generateNextId(this._indexer, type);
   }
 
-  /**
-   * Build the final filename following existing conventions.
-   */
   _buildFilename(id, title, year, type, extension) {
-    const cleanTitle = title.replace(/[/\\?%*:|"<>]/g, '-').trim();
-
-    switch (type) {
-      case 'Movie':
-        return `${id}- ${cleanTitle} ${year}.${extension}`;
-      case 'Animation':
-        return `${id}-${cleanTitle}.${extension}`;
-      case 'Iranian':
-        return `${id}-${cleanTitle}.${extension}`;
-      case 'Series':
-        return `${cleanTitle}.${extension}`;
-      default:
-        return `${id}-${cleanTitle}.${extension}`;
+    try {
+      // Shared builder (ARCH-03) — byte-identical to the old inline logic
+      return buildMovieFilename({ id, title, year, type, extension });
+    } catch (err) {
+      if (err && err.code) throw err;
+      throw fail('TITLE_INVALID', 400, err.message);
     }
   }
 
-  /**
-   * Get target folders based on type and genres.
-   */
   _getTargetFolders(type, genres) {
     const folders = [];
 
     switch (type) {
       case 'Movie':
-        // Copy to each selected genre folder
         for (const genre of genres) {
-          folders.push(path.join(this._libraryPath, 'Movies', genre));
+          try {
+            safeSegment(genre, 'ژانر');
+          } catch (err) {
+            throw fail('GENRE_INVALID', 400, err.message);
+          }
+          folders.push(resolveInside(this._libraryPath, 'Movies', genre));
         }
         break;
       case 'Animation':
-        folders.push(path.join(this._libraryPath, 'Animation'));
+        folders.push(resolveTypeFolder(this._libraryPath, 'Animation'));
         break;
       case 'Iranian':
-        folders.push(path.join(this._libraryPath, 'Iranian'));
+        folders.push(resolveTypeFolder(this._libraryPath, 'Iranian'));
         break;
       case 'Series':
-        folders.push(path.join(this._libraryPath, 'Serries'));
+        folders.push(resolveTypeFolder(this._libraryPath, 'Series'));
         break;
     }
 
     return folders;
   }
 
-  /**
-   * Check for duplicate filenames in target folders.
-   */
   _checkDuplicateFilenames(filename, targetFolders) {
     for (const folder of targetFolders) {
       const targetPath = path.join(folder, filename);
       if (fs.existsSync(targetPath)) {
-        throw new Error(`فایل ${filename} قبلاً در ${folder} وجود دارد`);
+        throw fail('FILE_EXISTS', 409, `فایل ${filename} قبلاً در ${folder} وجود دارد`);
       }
     }
   }
 
-  /**
-   * Create a timestamped backup of catalog.json.
-   */
   _createBackup() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(this._backupsDir, `catalog_backup_${timestamp}.json`);
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(this._backupsDir, `catalog_backup_${timestamp}.json`);
 
-    if (fs.existsSync(this._catalogPath)) {
-      fs.copyFileSync(this._catalogPath, backupPath);
-      console.log(`  [MOVIE-CREATOR] Backup created: ${path.basename(backupPath)}`);
+      if (fs.existsSync(this._catalogPath)) {
+        fs.copyFileSync(this._catalogPath, backupPath);
+        this._log(`  [MOVIE-CREATOR] Backup created: ${path.basename(backupPath)}`);
+      }
+
+      return backupPath;
+    } catch (err) {
+      // Backup is best-effort — never block creation on it
+      console.error(`  [MOVIE-CREATOR] Backup failed: ${err.message}`);
+      return null;
     }
-
-    return backupPath;
   }
 
-  /**
-   * Ensure a directory exists (create if needed).
-   */
   _ensureDirectory(dirPath) {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
   }
 
-  /**
-   * Build the movie object for the catalog.
-   */
   _buildMovieObject(movieData, id, filename, targetFolders) {
     const uid = movieData.type === 'Series'
-      ? `series:${movieData.title.trim().replace(/\s+/g, ' ').toLowerCase()}`
+      ? `series:${seriesKey(movieData.title)}`
       : String(id);
 
-    const posterPath = `/api/poster/${encodeURIComponent(uid)}`;
     const absolutePosterPath = targetFolders.length > 0 ? path.join(targetFolders[0], filename) : null;
 
-    return {
+    const movie = {
       uid,
       id: movieData.type === 'Series' ? null : String(id),
       title: movieData.title.trim(),
@@ -314,78 +379,39 @@ class MovieCreator {
       genres: movieData.genres || [],
       type: movieData.type,
       absolutePosterPath,
-      poster: posterPath,
+      poster: null,
       imdbRating: movieData.imdbRating ? parseFloat(movieData.imdbRating) : null,
       plotSummary: movieData.plotSummary || null,
       _posterSet: true
     };
+    movie.poster = CatalogIndexer.posterUrl(movie);
+    return movie;
   }
 
-  /**
-   * Update catalog.json with the new movie.
-   */
-  _updateCatalog(newMovie) {
-    try {
-      const catalogData = JSON.parse(fs.readFileSync(this._catalogPath, 'utf-8'));
-      if (!catalogData.movies) {
-        catalogData.movies = [];
-      }
-
-      catalogData.movies.push(newMovie);
-      catalogData.meta.lastUpdated = new Date().toISOString();
-      catalogData.meta.totalMovies = catalogData.movies.length;
-
-      fs.writeFileSync(this._catalogPath, JSON.stringify(catalogData, null, 2), 'utf-8');
-
-      // Update in-memory index
-      this._indexer.addMovieToIndex(newMovie);
-
-      console.log(`  [MOVIE-CREATOR] Movie added to catalog: ${newMovie.id} - ${newMovie.title}`);
-    } catch (error) {
-      throw new Error(`Failed to update catalog: ${error.message}`);
-    }
-  }
-
-  /**
-   * Rollback: Remove a backup file.
-   */
   _rollbackBackup(backupPath) {
     if (backupPath && fs.existsSync(backupPath)) {
       fs.unlinkSync(backupPath);
-      console.log(`  [MOVIE-CREATOR] Rolled back: removed backup ${path.basename(backupPath)}`);
+      this._log(`  [MOVIE-CREATOR] Rolled back: removed backup ${path.basename(backupPath)}`);
     }
   }
 
-  /**
-   * Rollback: Remove a copied poster file.
-   */
   _rollbackFile(filePath) {
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      console.log(`  [MOVIE-CREATOR] Rolled back: removed file ${path.basename(filePath)}`);
+      this._log(`  [MOVIE-CREATOR] Rolled back: removed file ${path.basename(filePath)}`);
     }
   }
 
-  /**
-   * Rollback: Remove movie from catalog.json.
-   */
-  _rollbackCatalogUpdate(movieId) {
-    try {
-      const catalogData = JSON.parse(fs.readFileSync(this._catalogPath, 'utf-8'));
-      if (catalogData.movies) {
-        catalogData.movies = catalogData.movies.filter(m => m.id !== movieId);
-        catalogData.meta.totalMovies = catalogData.movies.length;
-        fs.writeFileSync(this._catalogPath, JSON.stringify(catalogData, null, 2), 'utf-8');
+  _removeTempDir(dir) {
+    if (dir) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch (err) {
+        console.error(`  [MOVIE-CREATOR] Temp cleanup failed: ${err.message}`);
       }
-
-      // Remove from in-memory index
-      this._indexer.removeMovieFromIndex(movieId);
-
-      console.log(`  [MOVIE-CREATOR] Rolled back: removed movie ${movieId} from catalog`);
-    } catch (error) {
-      console.error(`  [MOVIE-CREATOR] Catalog rollback failed: ${error.message}`);
     }
   }
 }
 
 module.exports = MovieCreator;
+module.exports.statusOf = statusOf;

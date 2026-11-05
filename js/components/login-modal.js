@@ -1,14 +1,17 @@
 /**
  * LoginModal Component
- * Modal dialog for admin login
+ * Modal dialog for admin login and first-run setup
  */
 
 import { store, showToast } from '../store.js';
+import { trapFocus } from '../utils/dialog.js';
 
 class LoginModal extends HTMLElement {
   constructor() {
     super();
     this._isOpen = false;
+    this._setupMode = false;
+    this._releaseFocus = null;
   }
 
   connectedCallback() {
@@ -18,10 +21,10 @@ class LoginModal extends HTMLElement {
   render() {
     this.innerHTML = `
       <div class="modal-overlay" id="modalOverlay">
-        <div class="modal-dialog">
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
           <div class="modal-header">
-            <h3>ورود مدیر</h3>
-            <button class="btn-icon modal-close" id="closeBtn" title="بستن">
+            <h3 id="loginTitle">ورود مدیر</h3>
+            <button class="btn-icon modal-close" id="closeBtn" title="بستن" aria-label="بستن">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
               </svg>
@@ -33,8 +36,12 @@ class LoginModal extends HTMLElement {
               <input type="text" id="username" name="username" required autocomplete="username" placeholder="admin">
             </div>
             <div class="form-group">
-              <label for="password">رمز عبور</label>
+              <label for="password" id="passwordLabel">رمز عبور</label>
               <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••">
+            </div>
+            <div class="form-group" id="confirmGroup" style="display:none">
+              <label for="confirmPassword">تکرار رمز عبور</label>
+              <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" placeholder="••••••">
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-ghost" id="cancelBtn">انصراف</button>
@@ -46,126 +53,6 @@ class LoginModal extends HTMLElement {
     `;
 
     this._bindEvents();
-    this._applyStyles();
-  }
-
-  _applyStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-      login-modal {
-        display: none;
-      }
-      login-modal.open {
-        display: block;
-      }
-      login-modal .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        backdrop-filter: blur(4px);
-      }
-      login-modal .modal-dialog {
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--radius-xl);
-        width: 90%;
-        max-width: 400px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      }
-      login-modal .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-4) var(--space-5);
-        border-bottom: 1px solid var(--color-border-primary);
-      }
-      login-modal .modal-header h3 {
-        margin: 0;
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      login-modal .modal-body {
-        padding: var(--space-5);
-      }
-      login-modal .form-group {
-        margin-bottom: var(--space-4);
-      }
-      login-modal .form-group label {
-        display: block;
-        margin-bottom: var(--space-2);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-secondary);
-      }
-      login-modal .form-group input {
-        width: 100%;
-        padding: var(--space-3) var(--space-4);
-        background: var(--color-surface-input);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--radius-md);
-        color: var(--color-text-primary);
-        font-size: var(--font-size-base);
-        transition: border-color var(--transition-base);
-        box-sizing: border-box;
-        direction: ltr;
-        text-align: left;
-      }
-      login-modal .form-group input:focus {
-        outline: none;
-        border-color: var(--color-accent-primary);
-        box-shadow: 0 0 0 3px rgba(91, 127, 255, 0.2);
-      }
-      login-modal .form-group input::placeholder {
-        color: var(--color-text-tertiary);
-        font-weight: var(--font-weight-normal);
-        direction: ltr;
-        text-align: left;
-      }
-      login-modal .form-actions {
-        display: flex;
-        gap: var(--space-3);
-        justify-content: flex-start;
-        margin-top: var(--space-6);
-        direction: rtl;
-      }
-      login-modal .btn {
-        padding: var(--space-2) var(--space-5);
-        border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        cursor: pointer;
-        transition: all var(--transition-base);
-      }
-      login-modal .btn-ghost {
-        background: transparent;
-        border: 1px solid var(--color-border-primary);
-        color: var(--color-text-secondary);
-      }
-      login-modal .btn-ghost:hover {
-        background: var(--color-bg-tertiary);
-        color: var(--color-text-primary);
-      }
-      login-modal .btn-primary {
-        background: var(--color-accent-primary);
-        border: 1px solid var(--color-accent-primary);
-        color: white;
-      }
-      login-modal .btn-primary:hover {
-        background: var(--color-accent-hover);
-        border-color: var(--color-accent-hover);
-      }
-      login-modal .btn-primary:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   _bindEvents() {
@@ -176,8 +63,92 @@ class LoginModal extends HTMLElement {
     });
     this.querySelector('#loginForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      this._handleLogin();
+      if (this._setupMode) {
+        this._handleSetup();
+      } else {
+        this._handleLogin();
+      }
     });
+  }
+
+  async _checkSetupRequired() {
+    try {
+      const resp = await fetch('/api/auth/status');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.setupRequired) {
+          this._enterSetupMode();
+          return;
+        }
+      }
+    } catch {
+      // Server not reachable — stay in login mode
+    }
+  }
+
+  _enterSetupMode() {
+    this._setupMode = true;
+    this.querySelector('#loginTitle').textContent = 'ایجاد حساب مدیر';
+    this.querySelector('#passwordLabel').textContent = 'رمز عبور جدید';
+    this.querySelector('#confirmGroup').style.display = '';
+    this.querySelector('#submitBtn').textContent = 'ایجاد حساب';
+  }
+
+  _exitSetupMode() {
+    this._setupMode = false;
+    this.querySelector('#loginTitle').textContent = 'ورود مدیر';
+    this.querySelector('#passwordLabel').textContent = 'رمز عبور';
+    this.querySelector('#confirmGroup').style.display = 'none';
+    this.querySelector('#submitBtn').textContent = 'ورود';
+  }
+
+  async _handleSetup() {
+    const username = this.querySelector('#username').value.trim();
+    const password = this.querySelector('#password').value;
+    const confirmPassword = this.querySelector('#confirmPassword').value;
+    const submitBtn = this.querySelector('#submitBtn');
+
+    if (!username || !password) {
+      showToast('لطفاً نام کاربری و رمز عبور را وارد کنید', 'error');
+      return;
+    }
+
+    if (password.length < 8) {
+      showToast('رمز عبور باید حداقل ۸ کاراکتر باشد', 'error');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showToast('رمز عبور و تکرار آن مطابقت ندارند', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'در حال ایجاد...';
+
+    try {
+      const response = await fetch('/api/auth/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.token) {
+        store.setAdminSession(data.token);
+        showToast('حساب مدیر با موفقیت ایجاد شد', 'success');
+        this._exitSetupMode();
+        this.close();
+      } else {
+        showToast(data.error || 'خطا در ایجاد حساب مدیر', 'error');
+      }
+    } catch {
+      showToast('خطا در اتصال به سرور', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = this._setupMode ? 'ایجاد حساب' : 'ورود';
+    }
   }
 
   async _handleLogin() {
@@ -222,12 +193,30 @@ class LoginModal extends HTMLElement {
     this.classList.add('open');
     this.querySelector('#username').value = '';
     this.querySelector('#password').value = '';
-    setTimeout(() => this.querySelector('#username').focus(), 100);
+    const confirmGroup = this.querySelector('#confirmGroup');
+    if (confirmGroup) confirmGroup.querySelector('#confirmPassword').value = '';
+    this._checkSetupRequired();
+    setTimeout(() => {
+      const active = document.activeElement;
+      const typing = active && this.contains(active)
+        && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+      if (!typing) this.querySelector('#username').focus();
+    }, 100);
+    if (!this._releaseFocus) {
+      this._releaseFocus = trapFocus(this.querySelector('.modal-dialog'), {
+        onClose: () => this.close()
+      });
+    }
   }
 
   close() {
     this._isOpen = false;
     this.classList.remove('open');
+    this._exitSetupMode();
+    if (this._releaseFocus) {
+      this._releaseFocus();
+      this._releaseFocus = null;
+    }
   }
 }
 

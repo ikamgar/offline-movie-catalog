@@ -3,9 +3,19 @@
    CSS Custom Properties for dark/light themes
    ============================================ */
 
+/* Vazirmatn (SIL OFL 1.1 — licence: assets/fonts/OFL.txt) — bundled,
+   offline, variable-weight woff2 (FE-12 / G5). */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/assets/fonts/Vazirmatn-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* ---- Typography Scale ---- */
-  --font-family-primary: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-primary: 'Vazirmatn', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   --font-family-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 
   --font-size-xs: 0.6875rem;
@@ -64,6 +74,8 @@
 
   /* ---- Z-Index Scale ---- */
   --z-base: 1;
+  --z-raised: 2;
+  --z-panel-head: 10;
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-overlay: 300;
@@ -76,6 +88,11 @@
   --footer-height: 40px;
   --grid-min-width: 200px;
   --grid-max-width: 280px;
+
+  /* ---- Legacy aliases (were referenced by the styles moved into
+         css/admin.css and css/modals.css but never defined) ---- */
+  --color-accent: var(--color-accent-primary);
+  --color-accent-hover: var(--color-accent-primary-hover);
 }
 
 /* ============================================
@@ -100,13 +117,14 @@
 
   --color-text-primary: #e8e8ed;
   --color-text-secondary: #9494a8;
-  --color-text-tertiary: #6a6a80;
+  --color-text-tertiary: #8a8aa0;
+  --color-text-muted: #85859c;
   --color-text-inverse: #0f0f13;
   --color-text-accent: #7c9cff;
 
-  --color-accent-primary: #5b7fff;
-  --color-accent-primary-hover: #4a6de6;
-  --color-accent-primary-active: #3d5cc4;
+  --color-accent-primary: #4a6de6;
+  --color-accent-primary-hover: #3d5cc4;
+  --color-accent-primary-active: #2f4ca8;
   --color-accent-secondary: #8b5cf6;
   --color-accent-success: #34d399;
   --color-accent-warning: #fbbf24;
@@ -133,7 +151,7 @@
 
   --gradient-hero: linear-gradient(135deg, #0f0f13 0%, #1a1a2e 50%, #16213e 100%);
   --gradient-card: linear-gradient(180deg, transparent 0%, rgba(15, 15, 19, 0.8) 100%);
-  --gradient-accent: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
+  --gradient-accent: linear-gradient(135deg, #4a6de6 0%, #7c3aed 100%);
 
   /* ---- Badge Colors ---- */
   --badge-dubbed-bg: linear-gradient(135deg, #2E7D32, #1B5E20);
@@ -178,16 +196,17 @@
 
   --color-text-primary: #18181b;
   --color-text-secondary: #52525b;
-  --color-text-tertiary: #a1a1aa;
+  --color-text-tertiary: #66666f;
+  --color-text-muted: #606068;
   --color-text-inverse: #ffffff;
-  --color-text-accent: #4a6de6;
+  --color-text-accent: #3d5cc4;
 
-  --color-accent-primary: #5b7fff;
-  --color-accent-primary-hover: #4a6de6;
-  --color-accent-primary-active: #3d5cc4;
+  --color-accent-primary: #4a6de6;
+  --color-accent-primary-hover: #3d5cc4;
+  --color-accent-primary-active: #2f4ca8;
   --color-accent-secondary: #8b5cf6;
-  --color-accent-success: #10b981;
-  --color-accent-warning: #d97706;
+  --color-accent-success: #047857;
+  --color-accent-warning: #b45309;
   --color-accent-danger: #dc2626;
   --color-accent-info: #0284c7;
 
@@ -200,7 +219,7 @@
 
   --gradient-hero: linear-gradient(135deg, #f5f5f7 0%, #e8e8ec 50%, #d4d8e8 100%);
   --gradient-card: linear-gradient(180deg, transparent 0%, rgba(245, 245, 247, 0.8) 100%);
-  --gradient-accent: linear-gradient(135deg, #5b7fff 0%, #8b5cf6 100%);
+  --gradient-accent: linear-gradient(135deg, #4a6de6 0%, #7c3aed 100%);
 
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
@@ -247,12 +266,12 @@
   --color-border-secondary: #30305a;
   --color-border-focus: #00d4ff;
 
-  --color-accent-primary: #00d4ff;
-  --color-accent-primary-hover: #00b8e6;
-  --color-accent-primary-active: #0099cc;
+  --color-accent-primary: #007d9e;
+  --color-accent-primary-hover: #006f9f;
+  --color-accent-primary-active: #005c88;
   --color-text-accent: #00d4ff;
 
-  --gradient-accent: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+  --gradient-accent: linear-gradient(135deg, #007d9e 0%, #7c3aed 100%);
   --gradient-card: linear-gradient(180deg, transparent 0%, rgba(10, 10, 18, 0.85) 100%);
   --gradient-hero: linear-gradient(135deg, #0a0a12 0%, #0f0f2a 50%, #1a0a2e 100%);
 
@@ -277,14 +296,14 @@
 
   --color-border-primary: #d0d4e0;
   --color-border-secondary: #c0c4d0;
-  --color-border-focus: #0099cc;
+  --color-border-focus: #006f9f;
 
-  --color-accent-primary: #0099cc;
-  --color-accent-primary-hover: #007aaa;
+  --color-accent-primary: #006f9f;
+  --color-accent-primary-hover: #005f8c;
   --color-accent-primary-active: #005c88;
-  --color-text-accent: #0077aa;
+  --color-text-accent: #006b99;
 
-  --gradient-accent: linear-gradient(135deg, #0099cc 0%, #7c3aed 100%);
+  --gradient-accent: linear-gradient(135deg, #006f9f 0%, #7c3aed 100%);
   --gradient-hero: linear-gradient(135deg, #f0f2f8 0%, #e0e4f0 50%, #d0d8e8 100%);
 
   --scrollbar-track: #e8eaf2;

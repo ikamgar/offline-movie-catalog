@@ -3,9 +3,12 @@ setlocal
 
 cd /d "%~dp0"
 
+set "APP_VER=unknown"
+for /f "delims=" %%v in ('node -p "require('./package.json').version" 2^>nul') do set "APP_VER=%%v"
+
 echo.
 echo  ╔════════════════════════════════════════╗
-echo  ║    MovieCatalog v5.4.0 - Setup         ║
+echo  ║    MovieCatalog v%APP_VER% - Setup         ║
 echo  ╚════════════════════════════════════════╝
 echo.
 
