@@ -1,9 +1,9 @@
 # Changelog
 
 All notable changes to the Offline Movie Catalog, one entry per phase, in
-reverse chronological order. Defect IDs refer to
-[`mimo/DEFECT-REGISTER.md`](mimo/DEFECT-REGISTER.md); evidence for each
-closure is in the matching [`mimo/PHASE-REPORT-*.md`](mimo/).
+reverse chronological order. Defect IDs and findings refer to the internal
+quality and security remediation program (detailed internal verification records
+are retained in private project archives).
 Format follows [Keep a Changelog](https://keepachangelog.com/). Phases are
 not dated releases — see `git history` for dates.
 
@@ -49,7 +49,7 @@ Comprehensive production release upgrading the Offline Movie Catalog from the v5
 - **F32 — Poster upload sniffing across all routes.** Poster uploads on POST /api/movies, POST /api/games, PUT /api/movies/by-uid/:uid, and POST /api/movies/preview strictly validate image magic bytes. ISO-BMFF containers (brands isom, mp42, 3gp5), HTML, and PHP scripts are rejected with `IMG_UNSUPPORTED` (400); AVIF (avif/avis), JPEG, PNG, and WebP are accepted.
 - **F16 — Order size cap boundary.** Enforced exact 500-item order boundary (500 accepted, 501 rejected with Persian validation message).
 - **FE-11 (F5) — Admin empty-state UI.** Corrected Persian string assertion in rendered admin-panel empty state.
-- **Sort (AGENTS I11) — Persian and English article stripping.** Series titles starting with «یک » and «آن » sort by remainder in both directions alongside English The/A/An.
+- **Sort (Invariant I11) — Persian and English article stripping.** Series titles starting with «یک » and «آن » sort by remainder in both directions alongside English The/A/An.
 - **F2 — Live createServer references.** `createServer()` exposes live instances for `wsServer`, `diagnostics`, `movieCreator`, `movieEditor`, `movieTrash`, and `watcher` via getters after `start()`.
 - **F26 — Shared game-key normaliser.** Extracted canonical `gameKey` helper to `backend/utils/game-key.js`, unified across `CatalogIndexer`, `GameEditor`, and `MovieTrash` with parity tests.
 - **F27/F25 — UI stub protocol version & game-poster route.** `ui-stub.js` imports `PROTOCOL_VERSION` from `backend/constants.js` and serves stubbed SVGs for `/api/game-poster/`.
@@ -57,7 +57,7 @@ Comprehensive production release upgrading the Offline Movie Catalog from the v5
 - **F7 — Fixture library unique titles.** Updated `scripts/make-fixture-library.js` series and games loops to generate cycle-suffixed unique titles without overwriting files.
 - **F8 — Playwright browser availability check.** `scripts/run-tests.js` and UI tests verify Chromium browser presence before launching, printing a clear instruction (`npx playwright install chromium`) instead of crashing.
 - **F15 — Pristine clone warning cleanup.** Reconcile catch handler checks for cache existence before warning; fresh clones without a cache do not claim "keeping cached catalog".
-- **F24 — Updated AGENTS.md.** Updated repository map, routes, error codes, and invariants. Documented accepted limitations (F4, F9, F10, F11, F17, F18, F19, F20, F21, F22, F23) in README.
+- **F24 — Updated documentation.** Updated repository map, routes, error codes, and invariants. Documented accepted limitations (F4, F9, F10, F11, F17, F18, F19, F20, F21, F22, F23) in README.
 
 ## [Unreleased] — R3 validation & auth hardening (F29, F30, F31-watcher, F32, F35, F36, F38, F39, F40)
 
@@ -251,9 +251,8 @@ Comprehensive production release upgrading the Offline Movie Catalog from the v5
   `srcset` instead of the full-size original (detail view unchanged).
   Measured with 40 realistic fixtures (avg 333 KB) — first screen
   6 posters **2024.0 KB → 182.8 KB**, full grid **13,345.9 KB →
-  1,214.8 KB**, reload **0 poster bytes** (immutable cache hit):
-  `mimo/shots/p8b/measure-{before,after}.json`, before/after layout shots
-  in `mimo/shots/p8b/`.
+  1,214.8 KB**, reload **0 poster bytes** (immutable cache hit),
+  verified via before/after layout measurements.
 - Persian UI text renders in Vazirmatn (111 KB woff2, cached immutably —
   no external font request, offline invariant test).
 
@@ -328,7 +327,7 @@ Comprehensive production release upgrading the Offline Movie Catalog from the v5
   push across the OS/Node matrix; UI suite runs on Ubuntu.
 - The four P7b carry-overs: first-run hint/header show real
   `Movies/…`, `Series/…`, `Games/…` examples instead of a nonexistent
-  `TV Series/…S01E01` path; AGENTS.md I1/§5 match the shipped routes and
+  `TV Series/…S01E01` path; architecture docs match the shipped routes and
   WS messages; `docs/types.js` documents all WS message types (10 added);
   `data/metadata.json` is ignored.
 

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Canonical Game-title normalisation (AGENTS I6/I8): trim, collapse
+ * Canonical Game-title normalisation (Invariants I6/I8): trim, collapse
  * runs of whitespace to single spaces, lower-case.
  *
  * Every `game:<title>` uid, every _gamesMap key, game-editor lookup,

@@ -3,7 +3,6 @@
  * Stub HTTP + WebSocket server for Playwright UI tests.
  * Serves the REAL index.html, js/ and css/ from the project root.
  * Fakes only /api/* and the WebSocket handshake (minimal protocol).
- * Pattern taken from mimo/repro/repro-ui.js, adapted for test helpers.
  *
  * Usage:
  *   const { startUIStub } = require('./ui-stub');

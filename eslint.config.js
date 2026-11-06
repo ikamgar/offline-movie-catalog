@@ -6,9 +6,9 @@
  *   backend/**, server/**, server.js, scripts/**, test/**
  *                            Node.js + CommonJS (server, tooling, tests)
  *
- * Out of scope on purpose: mimo/** (one-off repro/shots probes), docs/**
- * (comments-only), styles/markup. Findings are fixed in code — rule options
- * below encode two deliberate codebase idioms instead of blanket disables:
+ * Out of scope on purpose: docs/** (comments-only), styles/markup.
+ * Findings are fixed in code — rule options below encode two deliberate
+ * codebase idioms instead of blanket disables:
  *   eqeqeq … null:'ignore'   `x == null` / `x != null` null-check idiom
  *   no-empty allowEmptyCatch empty `catch {}` is intentional (cleanup paths)
  */
@@ -117,7 +117,7 @@ const rules = {
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'data/**', 'Library/**', 'mimo/**', 'docs/**']
+    ignores: ['node_modules/**', 'data/**', 'Library/**', 'docs/**', 'test-results/**', 'playwright-report/**']
   },
   {
     files: ['js/**/*.js'],

@@ -12,7 +12,7 @@
  *   Game                        → "game:<normalised title>" — DEFINED by the
  *                                 same uid pipeline (I6), but games carry no
  *                                 editor metadata (game-editor never wires the
- *                                 store, docs/audit/AUDIT-P9c.md §3), so this helper returns
+ *                                 store), so this helper returns
  *                                 null for uid-less game objects and nothing
  *                                 game-shaped is ever attached here. The F41
  *                                 journey test pins this contract.

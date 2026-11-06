@@ -1,8 +1,6 @@
 # Architecture — Offline Movie Catalog
 
-Verified against the source at phase P7b. Where this document differs from
-`AGENTS.md`, this document reflects the code (see *Discovered drift* at the
-end).
+Authoritative system architecture, data flow, API contracts, and domain invariants.
 
 ## Module map
 
@@ -79,7 +77,6 @@ scripts/run-tests.js   test runner (collects *.test.js, spawns node --test)
 scripts/print-urls.js  every non-internal IPv4 LAN URL (Start.bat; --port-only)
 scripts/supervisor.js  restart loop: crash → restart in 3 s; 5 crashes in
                        2 min → stop bilingually; exit 0 = done (Stop.bat)
-mimo/                  phase prompts, defect register, phase reports, repros
 ```
 
 ## Data flow
@@ -233,8 +230,7 @@ until a later phase). Typedefs for most messages live in `docs/types.js`.
 
 ## Invariants
 
-Copied from `AGENTS.md` §4, with **I1 updated to the current code**
-(manager metadata moved out of the cache in P2):
+Core domain and architectural invariants of the system:
 
 - **I1** The filesystem is the source of truth for *which* titles exist.
   `data/catalog.json` is a rebuildable cache; manager-entered
@@ -321,16 +317,6 @@ quarantine/recovery — e.g. a `PERSIST_FAILED` metadata write (F33) or a
 quarantined corrupt file — are collected in memory and surfaced on
 `GET /api/diagnostics`. They reset on restart and are never written to disk.
 
-## Discovered drift (docs that lag the code)
+## Reference Notes
 
-- `AGENTS.md` **I1** still says P2 *will* move manager metadata out of
-  `catalog.json` — already done (`data/metadata.json`).
-- `AGENTS.md` §5 lists admin REST routes as "unauthenticated, SEC-02" —
-  they are all behind `requireAdmin` since P1a; it also omits
-  `/api/auth/status|setup|change-password`, `/api/config`, trash routes,
-  and the WS messages `catalog:changed`, `orders:undo`, `selection:saved`,
-  `selection:cleared`, `orders:restored`.
-- `docs/types.js` (P7a) has no typedefs for `selection:save`,
-  `selection:clear`, `selection:saved`, `selection:cleared`,
-  `orders:saved`, `orders:deleted`, `orders:restored`, `ping`, `pong` —
-  the table above is authoritative until they are added.
+- `docs/types.js` provides JSDoc typedefs; the REST and WebSocket tables above are authoritative.

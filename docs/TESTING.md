@@ -6,7 +6,6 @@
 npm test                 # Run unit/characterization tests
 npm run test:ui          # Run UI tests (requires Playwright browsers)
 npm run test:all         # Run unit + UI tests together
-npm run test:repro       # Run defect reproductions
 ```
 
 ## How the test runner works

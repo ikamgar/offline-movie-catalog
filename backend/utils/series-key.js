@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Canonical Series-title normalisation (AGENTS I5): trim, collapse
+ * Canonical Series-title normalisation (Invariant I5): trim, collapse
  * runs of whitespace to single spaces, lower-case.
  *
  * Every `series:<title>` uid and every Series map key MUST be built with

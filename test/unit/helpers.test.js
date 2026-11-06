@@ -3,7 +3,7 @@
  * P5c — D4 / FE-06: shared id-vs-title helper for copy, print and the
  * order snapshot.
  *
- * Rule (AGENTS I2/I4/I5/I6): Movies/Animation/Iranian carry a string id,
+ * Rule (Invariants I2/I4/I5/I6): Movies/Animation/Iranian carry a string id,
  * Series carry id:null, Games carry no id field at all — so the helper must
  * return the id when present and the title otherwise, and must never
  * stringify null/undefined.

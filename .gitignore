@@ -5,18 +5,35 @@ node_modules/
 data/catalog.json
 data/orders.json
 data/auth.json
+data/auth.corrupt-*.json
 data/metadata.json
 data/backups/
 data/thumbs/
+data/.*.tmp
 logs/
 config.json
+!config.example.json
 
 # ── Movie Library (media files, too large for Git) ───────────
 Library/
 
+# ── Test & Quality Artifacts ─────────────────────────────────
+test-results/
+playwright-report/
+blob-report/
+
 # ── Environment & Secrets ────────────────────────────────────
 .env
 .env.*
+.env.local
+!.env.example
+!.env.sample
+
+# ── Logs & Debug Outputs ─────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ── OS Generated Files ───────────────────────────────────────
 Thumbs.db

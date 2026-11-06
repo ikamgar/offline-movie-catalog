@@ -50,7 +50,6 @@ jobs:
         with:
           name: ui-failure-artifacts
           path: |
-            mimo/shots/
             test-results/
             playwright-report/
           if-no-files-found: ignore

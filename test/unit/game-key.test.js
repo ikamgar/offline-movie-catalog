@@ -24,7 +24,7 @@ describe('F26 — ONE shared game-key normaliser', () => {
     { input: 'Spider-Man: Miles Morales', expected: 'spider-man: miles morales' },
   ];
 
-  it('normalises game titles correctly according to AGENTS I6/I8', () => {
+  it('normalises game titles correctly according to invariants I6/I8', () => {
     for (const { input, expected } of testVectors) {
       assert.equal(gameKey(input), expected, `gameKey(${JSON.stringify(input)}) should equal ${JSON.stringify(expected)}`);
     }

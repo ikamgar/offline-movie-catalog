@@ -1,8 +1,7 @@
 'use strict';
 /**
  * UI defect tests — run against the REAL app served by a stub API + WS server.
- * Ported from mimo/repro/repro-ui.js.  Each test is { todo: '<ID>' } and must fail
- * with MEASURED values in the failure message.
+ * Each test is { todo: '<ID>' } and must fail with MEASURED values in the failure message.
  */
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -15,9 +14,9 @@ try { chromium = require('playwright').chromium; } catch {}
 const { startUIStub } = require('../helpers/ui-stub');
 
 // Screenshots go to a temp dir by default so a full run leaves `git status`
-// clean; set KEEP_SHOTS=1 to write them into mimo/shots/ for review.
+// clean; set KEEP_SHOTS=1 to write them into test-results/shots/ for review.
 const SHOTS_DIR = process.env.KEEP_SHOTS
-  ? path.join(__dirname, '..', '..', 'mimo', 'shots', 'p3g')
+  ? path.join(__dirname, '..', '..', 'test-results', 'shots', 'p3g')
   : fs.mkdtempSync(path.join(os.tmpdir(), 'ui-test-shots-p3g-'));
 
 const many = Array.from({ length: 400 }, (_, i) => {
@@ -686,7 +685,7 @@ describe('FE-08 — 401 drops admin to customer with toast and login modal', () 
 // ─── P3H — confirm-dialog animation + pre-line message (P1c CSS sweep) ──────
 
 const P3H_SHOTS_DIR = process.env.KEEP_SHOTS
-  ? path.join(__dirname, '..', '..', 'mimo', 'shots', 'p3h')
+  ? path.join(__dirname, '..', '..', 'test-results', 'shots', 'p3h')
   : fs.mkdtempSync(path.join(os.tmpdir(), 'ui-test-shots-p3h-'));
 
 describe('P3H — confirm modal keeps baseline animation and message white-space', () => {

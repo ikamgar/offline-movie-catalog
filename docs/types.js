@@ -5,11 +5,11 @@
  * `tsc --noEmit --allowJs --checkJs` read the @typedefs from here.
  * Shapes mirror the code: CatalogIndexer.toPublicMovie/toPublicGame,
  * order-manager.createOrder/sanitizeMovie, backend/constants.js and the
- * WebSocket messages documented in AGENTS §5 (protocol 3).
+ * WebSocket messages documented in docs/ARCHITECTURE.md (protocol 3).
  */
 
 /**
- * Catalog type of a movie poster, from the top-level folder (AGENTS I3).
+ * Catalog type of a movie poster, from the top-level folder (Invariant I3).
  * @typedef {'Movie'|'Series'|'Animation'|'Iranian'} MovieType
  */
 
@@ -104,7 +104,7 @@
  * @property {number} protocol - WebSocket protocol version
  */
 
-/* ─── WebSocket messages (AGENTS §5, JSON {type, payload}, protocol 3) ─── */
+/* ─── WebSocket messages (docs/ARCHITECTURE.md, JSON {type, payload}, protocol 3) ─── */
 
 /**
  * Every WS frame is `{type, payload}`; `payload` may be omitted.

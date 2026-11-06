@@ -384,7 +384,6 @@ logs/              daily app logs (git-ignored, 7 newest kept)
 Library/           your poster files (git-ignored)
 docs/              architecture, types, contributing, testing, Persian guide
 test/              unit + Playwright UI tests
-mimo/              phase prompts, defect register, phase reports, repros
 Start.bat          Windows launcher (checks, install, LAN URLs, restart loop)
 Stop.bat           graceful stop (writes logs/stop.request)
 ```

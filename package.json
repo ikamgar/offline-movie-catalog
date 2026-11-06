@@ -13,7 +13,6 @@
     "test": "node scripts/run-tests.js unit",
     "test:ui": "node scripts/run-tests.js ui",
     "test:all": "node scripts/run-tests.js all",
-    "test:repro": "node mimo/repro/repro-backend.js",
     "lint": "eslint ."
   },
   "dependencies": {

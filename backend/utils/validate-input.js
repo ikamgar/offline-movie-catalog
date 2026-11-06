@@ -16,7 +16,7 @@
  * Returns { ok: true, data: { ...normalised fields...} }
  *      or { ok: false, status: 400, code: '...', error: '...' }
  *
- * Persian user-visible strings are pinned (AGENTS §2); codes are mapped by
+ * Persian user-visible strings are pinned; codes are mapped by
  * the client to UI behaviour and never parsed.
  */
 

@@ -3,7 +3,7 @@
  * ARCH-03 (P7a F2) — backend/constants.js and backend/utils/series-key.js
  * are the single source of truth: parser, role-provider, indexer and the
  * write endpoints must all read the same lists, and the Persian wording
- * pinned by AGENTS I11/I12 must not drift.
+ * pinned by invariants I11/I12 must not drift.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
