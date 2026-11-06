@@ -16,12 +16,12 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "ws": "^8.21.1"
+    "express": "^5.3.0",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
-    "eslint": "^9.39.5",
-    "playwright": "^1.44.0"
+    "eslint": "^10.14.0",
+    "playwright": "^1.64.1"
   },
   "optionalDependencies": {
     "sharp": "^0.35.5"
