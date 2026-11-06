@@ -7,6 +7,17 @@ are retained in private project archives).
 Format follows [Keep a Changelog](https://keepachangelog.com/). Phases are
 not dated releases — see `git history` for dates.
 
+## [6.0.1] — 2026-11-06
+
+Maintenance and repository-hygiene release following the public repository privacy and artifact audit.
+
+### Changed & Maintained
+
+- **Repository Hygiene & Privacy:** Removed internal development artifacts, temporary phase reports, reproduction test scripts, and private audit records (`mimo/`, `AGENTS.md`, and `docs/audit/`) from the current public repository.
+- **Reference Cleanup:** Eliminated obsolete development-only references, debug scripts, and internal artifact paths across documentation, package scripts, and test helpers.
+- **Git Ignore Hardening:** Strengthened `.gitignore` rules to reliably prevent accidental commits of runtime databases, local configuration (`config.json`, `.env`), temporary files, debug logs, and test screenshot artifacts, while explicitly ensuring example configuration templates (`config.example.json`, `.env.example`, `.env.sample`) remain trackable.
+- **Documentation & Tooling:** Maintained and sanitized developer documentation (`docs/CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/types.js`, `README.md`), updated ESLint ignore configuration, and aligned CI test artifact paths with the sanitized open-source repository layout.
+
 ## [6.0.0] — 2026-11-05
 
 Comprehensive production release upgrading the Offline Movie Catalog from the v5.4.0 baseline.

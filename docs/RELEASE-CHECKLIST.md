@@ -1,4 +1,4 @@
-# Release Verification & Smoke Test Checklist (v6.0.0)
+# Release Verification & Smoke Test Checklist (v6.0.1)
 
 This checklist provides a manual **15-minute smoke test** for the shop owner or release manager on a real Windows machine (or staging server) before deployment. All steps use the actual production scripts and paths.
 
@@ -24,7 +24,7 @@ All UI text matches the Persian production strings verbatim.
   - A Windows console opens.
   - The supervisor (`scripts/supervisor.js`) starts and launches `server.js`.
   - Console prints:
-    - Server version `MovieCatalog Server v6.0.0`
+    - Server version `MovieCatalog Server v6.0.1`
     - Auth status `Auth setup: first-run (setup required)`
     - Background scan and watcher initialization
     - URL banner listing the Local URL (`http://localhost:3000`) and Network LAN URL (`http://192.168.x.x:3000`).
@@ -184,7 +184,7 @@ Once all 17 smoke test steps pass:
    ```bash
    git checkout master
    git merge --ff-only release/prep
-   git tag -a v6.0.0 -m "6.0.0"
+   git tag -a v6.0.1 -m "6.0.1"
    ```
 3. **Distribution Archive:**
    - Create clean ZIP distribution excluding `node_modules`, `data`, `logs`, and `Library`.
